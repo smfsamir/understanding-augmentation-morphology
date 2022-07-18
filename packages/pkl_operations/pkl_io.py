@@ -4,7 +4,7 @@ from os import makedirs
 from os.path import split 
 from datetime import datetime
 
-def load_pkl_from_path(path):
+def load_pkl_from_path(path: str):
     path, filename = split(path)
     pkl = load_pkl(filename, '{}/'.format(path))
     return pkl
