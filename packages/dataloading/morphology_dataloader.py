@@ -18,21 +18,31 @@ def collate_batch(
 ):
     bs_id = torch.tensor([0], device=device)  # <s> token id
     eos_id = torch.tensor([1], device=device)  # </s> token id
-    src_list, tgt_list = [], []
-    tag_start_indices = []
+    src_list, tag_list, tgt_list = [], [], []
     for (_src, _tgt, _tag) in batch:
-        tag_start_indices.append(len(_src))
         processed_src = torch.cat(
             [
                 bs_id,
                 torch.tensor(
-                    char_vocab(char_pipeline(_src)) + tag_vocab(tag_pipeline(_tag)),
+                    char_vocab(char_pipeline(_src)) ,
                     dtype=torch.int64,
                     device=device,
                 ),
                 eos_id,
             ],
             0,
+        )
+        processed_tag = torch.cat(
+            [
+                bs_id,
+                torch.tensor(
+                    tag_vocab(tag_pipeline(_tag)),
+                    dtype=torch.int64,
+                    device=device
+                ),
+                eos_id
+            ],
+            0
         )
         processed_tgt = torch.cat(
             [
@@ -66,11 +76,20 @@ def collate_batch(
             )
         )
 
+        tag_list.append(
+            pad(
+                processed_tag,
+                (0, max_padding - len(processed_tag)),
+                value=pad_id,
+            )
+        )
+
     # src = torch.stack(pack_padded_sequence(torch.tensor(src_list), src_lengths))
     # tgt = torch.stack(pack_padded_sequence(torch.tensor(tgt_list), tgt_lengths))
     src = torch.stack((src_list) )
     tgt = torch.stack((tgt_list))
-    return (src, tgt, tag_start_indices)
+    tag = torch.stack((tag_list))
+    return (src, tgt, tag)
 
 def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: Vocab , tag_vocab: Vocab, device: str):
     def collate_fn(batch):
