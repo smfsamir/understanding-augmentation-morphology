@@ -34,13 +34,13 @@ class TwoStepAttentionInflector(nn.Module):
 
         decoder_input = tgts[:,0]
         decoder_outputs = []
-        for i in range(1, tgt_seq_len): # start from 1 because we started with the bos token.
-            decoder_output, decoder_hidden, _ = self.decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
+        for i in range(0, tgt_seq_len): # start from 1 because we started with the bos token.
+            decoder_output, decoder_hidden, _ = self.two_step_decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
 
             decoder_outputs.append(decoder_output)
             decoder_hidden = src_embeds_final
             decoder_input = tgts[:,i]     
-        return torch.cat(decoder_outputs, dim=1) 
+        return torch.stack(decoder_outputs, dim=1) 
 
 class TwoStepDecoderCell(nn.Module):
 
@@ -168,4 +168,4 @@ def make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim=64):
     lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
     decoder = TwoStepDecoderCell(embed_layer, hidden_dim, len(vocab_char))
 
-    return TwoStepAttentionInflector(lemma_encoder, tag_encoder, decoder)
+    return TwoStepAttentionInflector(lemma_encoder, tag_encoder, decoder, padding_id)

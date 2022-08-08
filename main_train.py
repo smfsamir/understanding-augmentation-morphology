@@ -5,11 +5,13 @@ from packages.dataloading.vocab import load_vocab
 from packages.utils.util_functions import get_mask
 
 from packages.transformer.self_attention_encoder import make_model
-from packages.encoder_decoder_rnn.model import BidirectionalLemmaEncoder, TwoStepDecoderCell
+from packages.encoder_decoder_rnn.model import BidirectionalLemmaEncoder, TwoStepDecoderCell, make_inflector
 
 import pandas as pd
+from sklearn.model_selection import train_test_split
 import torch.nn as nn
 import torch.optim as optim
+import torch
 
 # NOTE: this should work for just morphological inflection. Reinflection is a bit more delicate.
 sigm_df = pd.read_csv("data/eng_1000_train.tsv", sep='\t')
@@ -17,52 +19,75 @@ vocab_char, vocab_tag = load_vocab(sigm_df)
 padding_id = vocab_char.get_stoi()["<blank>"]
 
 # TODO: make train/validation split
-sigm_dataset = SigmorphonDataset(sigm_df)
-dataloader = create_dataloader(sigm_dataset, 32, vocab_char, vocab_tag, 'cpu')
+train_sigm_df, val_sigm_df = train_test_split(sigm_df, train_size=0.8, random_state=0)
+
+train_sigm_dataset = SigmorphonDataset(train_sigm_df)
+val_sigm_dataset = SigmorphonDataset(val_sigm_df)
+batch_size = 32
+train_dataloader = create_dataloader(train_sigm_dataset, batch_size, vocab_char, vocab_tag, 'cpu')
+val_dataloader = create_dataloader(val_sigm_dataset, batch_size, vocab_char, vocab_tag, 'cpu')
+
+
 
 hidden_dim = 64
-embed_layer = nn.Embedding(len(vocab_char) + 1, embedding_dim=hidden_dim, padding_idx=padding_id) # +1 for padding token?
-tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim)
-lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
-decoder = TwoStepDecoderCell(embed_layer, hidden_dim, len(vocab_char))
-
+# embed_layer = nn.Embedding(len(vocab_char) + 1, embedding_dim=hidden_dim, padding_idx=padding_id) # +1 for padding token?
+# tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim)
+# lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
+# decoder = TwoStepDecoderCell(embed_layer, hidden_dim, len(vocab_char))
+model = make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim)
 criterion = nn.CrossEntropyLoss(ignore_index=padding_id, reduction='sum')
-optimizer = optim.Adam(list(lemma_encoder.parameters()) + list(decoder.parameters()) 
-                       + list(tag_encoder.parameters()), lr=0.01)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # TODO: make train and validation loop.
 # TODO: we should also try generating an example.
 
-def run_train_epoch(train_dataloader):
-    for srcs, tgts, tags, src_lengths, tgt_lengths in dataloader:
-    # dataloader_iter = iter(dataloader)
-    # srcs, tgts, tags = next(dataloader_iter)
-        annotations_tag = tag_encoder(tags, None) 
-        annotations_lemma, src_embeds_final = lemma_encoder(srcs, src_lengths) 
+def compute_loss(x, y, norm):
+    assert norm > 0
+    loss = criterion(x.contiguous().view(-1, x.size(-1)), 
+                        y.contiguous().view(-1)) / norm 
+    return loss
 
-        attn_mask = get_mask(srcs, padding_id) 
+def run_train_epoch(train_dataloader, model):
+    total_loss = 0
+    nb = 0
+    for srcs, tgts, tags, src_lengths, tgt_lengths in train_dataloader:
+        predictions = model(srcs, src_lengths, tags, tgts, tgt_lengths)
+        last_index = max(tgt_lengths) # - 1 cause we don't predict BOS.
 
-        decoder_hidden = src_embeds_final
-        tgt_seq_len = tgts.shape[1] -1 # -1 because we start with the bos token; we don't compute loss on it
+        # loss = criterion(predictions[:, last_index -1], tgts[:, 1:last_index]) # TODO: make sure this is ok; bug prone line...
+        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], sum(tgt_lengths) - batch_size) # TODO: make sure this is ok; bug prone line...
 
-        decoder_input = tgts[:,0]
-        loss = 0
-        for i in range(1, tgt_seq_len): # start from 1 because we started with the bos token.
-            decoder_output, decoder_hidden, attention_weights = decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
+        total_loss += loss.data
 
-            current_target = tgts[:, i]
-            if all(current_target == padding_id): 
-                continue
-            loss += criterion(decoder_output, current_target)
-            decoder_input = tgts[:,i]     
-        loss /= sum(tgt_lengths)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        nb += 1
 
-        return loss.data
+    return total_loss / nb
+
+def run_val_epoch(val_dataloader, model):
+    total_loss = 0
+    nb = 0
+    for srcs, tgts, tags, src_lengths, tgt_lengths in val_dataloader:
+        predictions = model(srcs, src_lengths, tags, tgts, tgt_lengths)
+        last_index = max(tgt_lengths) # - 1 cause we don't predict BOS.
+
+        # loss = criterion(predictions[:, last_index -1], tgts[:, 1:last_index]) # TODO: make sure this is ok; bug prone line...
+        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], sum(tgt_lengths) - batch_size) # TODO: make sure this is ok; bug prone line...
+
+        total_loss += loss.data
+        nb +=1
+    return total_loss / nb
 
 
-# # print(srcs)
-# print(srcs)
+for i in range(5):
+    model.train()
+    epoch_loss = run_train_epoch(train_dataloader, model)
+    print(f"Current loss: {epoch_loss}")
 
+    model.eval()
+    with torch.no_grad():
+        val_loss = run_val_epoch(val_dataloader, model)
+        print(f"Current validation loss: {val_loss}")
+    

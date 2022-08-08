@@ -13,7 +13,7 @@ def collate_batch(
     char_vocab,
     tag_vocab,
     device,
-    max_padding=30,
+    max_padding=25,
     pad_id=2,
 ):
     bs_id = torch.tensor([0], device=device)  # <s> token id
