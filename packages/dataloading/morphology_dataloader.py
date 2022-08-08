@@ -18,7 +18,7 @@ def collate_batch(
 ):
     bs_id = torch.tensor([0], device=device)  # <s> token id
     eos_id = torch.tensor([1], device=device)  # </s> token id
-    src_list, tag_list, tgt_list = [], [], []
+    src_list, tag_list, tgt_list, src_lengths, tgt_lengths = [], [], [], [], []
     for (_src, _tgt, _tag) in batch:
         processed_src = torch.cat(
             [
@@ -77,19 +77,23 @@ def collate_batch(
         )
 
         tag_list.append(
-            pad(
-                processed_tag,
-                (0, max_padding - len(processed_tag)),
-                value=pad_id,
-            )
+            processed_tag
+            # pad(
+            #     processed_tag,
+            #     (0, max_padding - len(processed_tag)),
+            # )
         )
+        src_lengths.append(len(_src) + 2) # +2 for bos and eos
+        tgt_lengths.append(len(_tgt) + 2)
 
     # src = torch.stack(pack_padded_sequence(torch.tensor(src_list), src_lengths))
     # tgt = torch.stack(pack_padded_sequence(torch.tensor(tgt_list), tgt_lengths))
     src = torch.stack((src_list) )
     tgt = torch.stack((tgt_list))
     tag = torch.stack((tag_list))
-    return (src, tgt, tag)
+    src_lengths = torch.tensor(src_lengths)
+    tgt_lengths = torch.tensor(tgt_lengths)
+    return (src, tgt, tag, src_lengths, tgt_lengths)
 
 def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: Vocab , tag_vocab: Vocab, device: str):
     def collate_fn(batch):
