@@ -1,7 +1,9 @@
+import pdb
 import torch
 import torch.nn as nn
 from torch.nn import LSTM
 from packages.utils.util_functions import get_mask
+import torch.nn.functional as F
 
 from ..transformer.self_attention_encoder import make_model
 
@@ -14,32 +16,39 @@ class TwoStepAttentionInflector(nn.Module):
         self.two_step_decoder = two_step_decoder
         self.padding_id = padding_id
     
-    def forward(self, src, src_lengths, tags, tgts = None, tgt_lengths = None):
+    def forward(self, src, src_lengths, tags, bos_token_id, tgts = None, tgt_lengths = None):
         """_summary_
 
         Args:
             use_tf (bool): Whether or not to use teacher-forcing (training).
+            bos_token_id (int): Beginning of sentence token id.
 
         Returns:
             _type_: _description_
         """
+        bs = src.shape[0]
         annotations_tag = self.tag_encoder(tags, None) 
         annotations_lemma, src_embeds_final = self.lemma_encoder(src, src_lengths) 
 
         attn_mask = get_mask(src, self.padding_id) 
 
-        decoder_input = tgts[:,0]
         decoder_hidden = src_embeds_final
-        tgt_seq_len = tgts.shape[1] -1 # -1 because we start with the bos token; we don't compute loss on it
-
-        decoder_input = tgts[:,0]
         decoder_outputs = []
-        for i in range(0, tgt_seq_len): # start from 1 because we started with the bos token.
-            decoder_output, decoder_hidden, _ = self.two_step_decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
+        if tgts is not None:
 
-            decoder_outputs.append(decoder_output)
-            decoder_hidden = src_embeds_final
-            decoder_input = tgts[:,i]     
+            max_chars = 25
+            for i in range(0, 25): # start from 1 because we started with the bos token.
+                decoder_input = tgts[:,i]     
+                decoder_output, decoder_hidden, _ = self.two_step_decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
+
+                decoder_outputs.append(decoder_output)
+        else:
+            decoder_input = torch.ones(bs, dtype=torch.long, device='cuda') * bos_token_id# TODO: fill in with bos token.
+            max_chars = 25 # TODO: fill in.
+            for i in range(0, max_chars):
+                decoder_output, decoder_hidden, _ = self.two_step_decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
+                decoder_outputs.append(decoder_output)
+                decoder_input = F.softmax(decoder_output, dim=-1).max(dim=-1).indices # TODO: check this
         return torch.stack(decoder_outputs, dim=1) 
 
 class TwoStepDecoderCell(nn.Module):
@@ -133,7 +142,7 @@ class BidirectionalLemmaEncoder(nn.Module):
         self.hidden_size = hidden_size
     
     def _init_hidden(self, bs):
-        return torch.zeros(bs, self.hidden_size)
+        return torch.zeros(bs, self.hidden_size, device='cuda') # TODO: make this an argument
 
     def forward(self, x, src_lengths):
         """
@@ -161,8 +170,7 @@ class BidirectionalLemmaEncoder(nn.Module):
         final_hidden = annotations[torch.arange(32), src_lengths]
         return annotations, final_hidden
     
-def make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim=64):
-    hidden_dim = 64
+def make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim=300):
     embed_layer = nn.Embedding(len(vocab_char) + 1, embedding_dim=hidden_dim, padding_idx=padding_id) # +1 for padding token?
     tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim)
     lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)

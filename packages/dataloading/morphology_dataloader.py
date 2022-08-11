@@ -91,8 +91,8 @@ def collate_batch(
     src = torch.stack((src_list) )
     tgt = torch.stack((tgt_list))
     tag = torch.stack((tag_list))
-    src_lengths = torch.tensor(src_lengths)
-    tgt_lengths = torch.tensor(tgt_lengths)
+    src_lengths = torch.tensor(src_lengths, device=device)
+    tgt_lengths = torch.tensor(tgt_lengths, device=device)
     return (src, tgt, tag, src_lengths, tgt_lengths)
 
 def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: Vocab , tag_vocab: Vocab, device: str):
