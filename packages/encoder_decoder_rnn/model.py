@@ -167,12 +167,12 @@ class BidirectionalLemmaEncoder(nn.Module):
             hidden = self.gru_cell(x, hidden)
             annotations.append(hidden)
         annotations = torch.stack(annotations, dim=1)
-        final_hidden = annotations[torch.arange(32), src_lengths]
+        final_hidden = annotations[torch.arange(x.shape[0]), src_lengths]
         return annotations, final_hidden
     
 def make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim=300):
     embed_layer = nn.Embedding(len(vocab_char) + 1, embedding_dim=hidden_dim, padding_idx=padding_id) # +1 for padding token?
-    tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim)
+    tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim, h=1)
     lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
     decoder = TwoStepDecoderCell(embed_layer, hidden_dim, len(vocab_char))
 

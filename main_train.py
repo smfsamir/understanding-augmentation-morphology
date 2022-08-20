@@ -18,28 +18,27 @@ import torch
 import torch.nn.functional as F
 
 # NOTE: this should work for just morphological inflection. Reinflection is a bit more delicate.
-sigm_df = pd.read_csv("data/eng_1000_train.tsv", sep='\t')
-vocab_char, vocab_tag = load_vocab(sigm_df)
+sigm_uncorrupted_w_hall_df= pd.read_csv("data/eng_1000_w_hall_train.tsv", sep='\t')
+sigm_uncorrupted_df = sigm_uncorrupted_w_hall_df.iloc[0:1000]
+sigm_hall_df = sigm_uncorrupted_w_hall_df.iloc[1000:] 
+vocab_char, vocab_tag = load_vocab(sigm_uncorrupted_df)
 padding_id = vocab_char.get_stoi()["<blank>"]
 bos_id = vocab_char.get_stoi()["<s>"]
 eos_id = vocab_char.get_stoi()["</s>"]
 
-
-# TODO: make train/validation split
 train_ratio = 0.75
 validation_ratio = 0.15
 test_ratio = 0.10
 
-train_sigm_df, test_sigm_df= train_test_split(sigm_df, test_size=1-train_ratio, random_state=0)
-
+train_sigm_df, test_sigm_df= train_test_split(sigm_uncorrupted_df, test_size=1-train_ratio, random_state=0)
 val_sigm_df, test_sigm_df = train_test_split(test_sigm_df, test_size=test_ratio/(test_ratio + validation_ratio)) 
 
-
+train_sigm_df = pd.concat([train_sigm_df, sigm_hall_df])
 
 train_sigm_dataset = SigmorphonDataset(train_sigm_df)
 val_sigm_dataset = SigmorphonDataset(val_sigm_df)
 test_sigm_dataset = SigmorphonDataset(test_sigm_df)
-batch_size = 32
+batch_size = 10
 device = 'cuda'
 train_dataloader = create_dataloader(train_sigm_dataset, batch_size, vocab_char, vocab_tag, device)
 val_dataloader = create_dataloader(val_sigm_dataset, batch_size, vocab_char, vocab_tag, device)
@@ -47,7 +46,7 @@ test_dataloader = create_dataloader(test_sigm_dataset, batch_size, vocab_char, v
 
 
 
-hidden_dim = 64
+hidden_dim = 32
 # embed_layer = nn.Embedding(len(vocab_char) + 1, embedding_dim=hidden_dim, padding_idx=padding_id) # +1 for padding token?
 # tag_encoder = make_model(len(vocab_tag), d_model=hidden_dim)
 # lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
@@ -102,20 +101,34 @@ def run_val_epoch(dataloader, model):
     return total_loss / nb
 
 def test_model(dataloader, trained_model):
+    actual_labels = []
+    prediction_labels = []
     for srcs, tgts, tags, src_lengths, tgt_lengths in dataloader:
         # srcs, src_lengths, tags, tgts, tgt_lengths = srcs.to(device), src_lengths.to(device), tags.to(device), tgts.to(device), tgt_lengths.to(device)
         prediction_dists = trained_model(srcs, src_lengths, tags, bos_id)
         # pdb.set_trace()
         predictions = F.softmax(prediction_dists, dim=-1).max(dim=-1).indices # TODO: check this
 
+
         for i in range(predictions.shape[0]):
             prediction = vocab_char.lookup_tokens(predictions[i].tolist()) # TODO: just ignore everything after the BOS token.
+            actual = vocab_char.lookup_tokens(tgts[i].tolist())
+            prediction_labels.append(prediction[:prediction.index("</s>")])
+            actual_labels.append(actual[1:actual.index("</s>")])
             print(f"Prediction: {prediction}")
-            print(f"Actual: {vocab_char.lookup_tokens(tgts[i].tolist())}")
+            print(f"Actual: {actual}")
+    total = len(actual_labels)
+    assert total == len(prediction_labels)
+    correct_arr = [1 if x == y else 0 for x, y in zip(actual_labels, prediction_labels)]
+    num_correct = sum(correct_arr)
+    print(f"Accuracy: {num_correct/total}")
+
+# TODO: load tensorboard
 # for i in range(30):
 #     model.train()
 #     epoch_loss = run_train_epoch(train_dataloader, model)
 #     print(f"Current loss: {epoch_loss}")
+
 
 #     model.eval()
 #     best_loss = float('inf')
@@ -125,6 +138,6 @@ def test_model(dataloader, trained_model):
 #             best_loss = val_loss
 #             checkpoint_model(model)
 #         print(f"Current validation loss: {val_loss}")
-    
+
 load_model(model) # mutation
 test_model(test_dataloader, model)
