@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional, List
 import pandas as pd
 from torch.utils.data import Dataset
 
@@ -12,4 +12,4 @@ class SigmorphonDataset(Dataset):
 
     def __getitem__(self, index: int) -> Tuple[str, str, str]:
         row = self.sigm_df.iloc[index]
-        return (row.src, row.tgt, row.tag)
+        return (row.src, row.tgt, row.tag, row.is_hallucinated)

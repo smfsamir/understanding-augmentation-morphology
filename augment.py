@@ -60,6 +60,7 @@ def augment(inputs, outputs, tags, characters):
 	new_inputs = []
 	new_outputs = []
 	new_tags = []
+	bad_pairs = []
 	for k,item in enumerate(aligned):
 		#print(''.join(inputs[k]) + '\t' + ''.join(outputs[k]))
 		i,o = item[0],item[1]

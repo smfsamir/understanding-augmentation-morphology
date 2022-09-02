@@ -18,6 +18,7 @@ import torch
 import torch.nn.functional as F
 
 # NOTE: this should work for just morphological inflection. Reinflection is a bit more delicate.
+HALL_SCALE_FACTOR = 0.95
 sigm_uncorrupted_w_hall_df= pd.read_csv("data/eng_1000_w_hall_train.tsv", sep='\t')
 sigm_uncorrupted_df = sigm_uncorrupted_w_hall_df.iloc[0:1000]
 sigm_hall_df = sigm_uncorrupted_w_hall_df.iloc[1000:] 
@@ -33,7 +34,12 @@ test_ratio = 0.10
 train_sigm_df, test_sigm_df= train_test_split(sigm_uncorrupted_df, test_size=1-train_ratio, random_state=0)
 val_sigm_df, test_sigm_df = train_test_split(test_sigm_df, test_size=test_ratio/(test_ratio + validation_ratio)) 
 
+pure_train_length = len(train_sigm_df)
 train_sigm_df = pd.concat([train_sigm_df, sigm_hall_df])
+train_sigm_df['is_hallucinated'] = ([False] * pure_train_length) + ([True] * len(sigm_hall_df))
+val_sigm_df['is_hallucinated'] = ([False] * len(val_sigm_df)) 
+test_sigm_df['is_hallucinated'] = ([False] * len(test_sigm_df)) 
+
 
 train_sigm_dataset = SigmorphonDataset(train_sigm_df)
 val_sigm_dataset = SigmorphonDataset(val_sigm_df)
@@ -52,29 +58,47 @@ hidden_dim = 32
 # lemma_encoder = BidirectionalLemmaEncoder(embed_layer, hidden_dim)
 # decoder = TwoStepDecoderCell(embed_layer, hidden_dim, len(vocab_char))
 model = make_inflector(vocab_char, vocab_tag, padding_id, hidden_dim).to(device)
-criterion = nn.CrossEntropyLoss(ignore_index=padding_id, reduction='sum').to(device)
+criterion = nn.CrossEntropyLoss(ignore_index=padding_id, reduction='none').to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # TODO: make train and validation loop.
 # TODO: we should also try generating an example.
 
-def compute_loss(x, y, norm):
-    assert norm > 0
-    loss = criterion(x.contiguous().view(-1, x.size(-1)), 
-                        y.contiguous().view(-1)) / norm 
-    return loss
+def compute_loss(x, y, norm, scale_factor):
+    """_summary_
 
+    Args:
+        x (torch.tensor): predictions. B x length of longest sequence in batch x vocab size
+        y (torch.tensor): ground truth. B x length of longest sequence in batch 
+        norm (torch.tensor): number of predictions being made. Size of each target, summed together
+        scale_factor (torch.tensor): scaling the sample differently based on whether it is hallucinated or not. 
+
+    Returns:
+        _type_: _description_
+    """
+    # TODO: scale the loss as needed. 
+    assert norm > 0
+    loss_batch_size, loss_seq_len = x.shape[0], x.shape[1] 
+    loss = criterion(x.contiguous().view(-1, x.size(-1)), 
+                        y.contiguous().view(-1)) # NOTE: I presume this broadcasts... should check if anything goes wrong
+    loss = loss.view(loss_batch_size, loss_seq_len) * scale_factor[:, None]
+    return loss.sum() / norm 
+
+scale_factor_regular = torch.ones(batch_size, device=device)
+scale_factor_hall = torch.ones(batch_size, device=device) * HALL_SCALE_FACTOR
 def run_train_epoch(train_dataloader, model):
     total_loss = 0
     nb = 0
-    for srcs, tgts, tags, src_lengths, tgt_lengths in train_dataloader:
+    for srcs, tgts, tags, src_lengths, tgt_lengths, is_hallucinated in train_dataloader:
         # srcs, src_lengths, tags, tgts, tgt_lengths = srcs.to(device), src_lengths.to(device), tags.to(device), tgts.to(device), tgt_lengths.to(device)
 
         predictions = model(srcs, src_lengths, tags, bos_id, tgts, tgt_lengths)
         last_index = max(tgt_lengths) # - 1 cause we don't predict BOS.
 
         # loss = criterion(predictions[:, last_index -1], tgts[:, 1:last_index]) # TODO: make sure this is ok; bug prone line...
-        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], sum(tgt_lengths) - batch_size)  # -1 because we don't predict BOS
+        scale_factor = torch.where(is_hallucinated, scale_factor_hall, scale_factor_regular)
+        norm = sum(scale_factor* tgt_lengths) - sum(scale_factor)
+        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], norm, scale_factor)  # -1 because we don't predict BOS
 
         total_loss += loss.data
 
@@ -88,13 +112,13 @@ def run_train_epoch(train_dataloader, model):
 def run_val_epoch(dataloader, model):
     total_loss = 0
     nb = 0
-    for srcs, tgts, tags, src_lengths, tgt_lengths in dataloader:
+    for srcs, tgts, tags, src_lengths, tgt_lengths, _ in dataloader:
         # srcs, src_lengths, tags, tgts, tgt_lengths = srcs.to(device), src_lengths.to(device), tags.to(device), tgts.to(device), tgt_lengths.to(device)
         predictions = model(srcs, src_lengths, tags, bos_id, tgts, tgt_lengths)
         last_index = max(tgt_lengths) # - 1 cause we don't predict BOS.
 
         # loss = criterion(predictions[:, last_index -1], tgts[:, 1:last_index]) # TODO: make sure this is ok; bug prone line...
-        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], sum(tgt_lengths) - batch_size) # TODO: make sure this is ok; bug prone line...
+        loss = compute_loss(predictions[:, :last_index -1], tgts[:, 1:last_index], sum(tgt_lengths) - batch_size, scale_factor_regular) # TODO: make sure this is ok; bug prone line...
 
         total_loss += loss.data
         nb +=1
@@ -103,7 +127,7 @@ def run_val_epoch(dataloader, model):
 def test_model(dataloader, trained_model):
     actual_labels = []
     prediction_labels = []
-    for srcs, tgts, tags, src_lengths, tgt_lengths in dataloader:
+    for srcs, tgts, tags, src_lengths, tgt_lengths, _ in dataloader:
         # srcs, src_lengths, tags, tgts, tgt_lengths = srcs.to(device), src_lengths.to(device), tags.to(device), tgts.to(device), tgt_lengths.to(device)
         prediction_dists = trained_model(srcs, src_lengths, tags, bos_id)
         # pdb.set_trace()
