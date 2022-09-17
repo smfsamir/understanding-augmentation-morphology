@@ -101,7 +101,7 @@ def collate_batch(
     is_hallucinated = torch.tensor(is_hallucinated, dtype=torch.bool, device=device)
     return (src, tgt, tag, src_lengths, tgt_lengths, is_hallucinated)
 
-def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: Vocab , tag_vocab: Vocab, device: str):
+def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: Vocab , tag_vocab: Vocab, device: str, shuffle=True, drop_last=True):
     def collate_fn(batch):
         return collate_batch(
             batch,
@@ -114,9 +114,9 @@ def create_dataloader(dataset: SigmorphonDataset, batch_size: int, char_vocab: V
         )
     dataloader = DataLoader(
         dataset,
-        shuffle = True,
+        shuffle = shuffle,
         batch_size=batch_size,
-        drop_last=True,
+        drop_last=drop_last,
         collate_fn=collate_fn
     )
     return dataloader

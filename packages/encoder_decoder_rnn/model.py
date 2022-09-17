@@ -9,12 +9,13 @@ from ..transformer.self_attention_encoder import make_model
 
 class TwoStepAttentionInflector(nn.Module):
 
-    def __init__(self, lemma_encoder, tag_encoder, two_step_decoder, padding_id) -> None:
+    def __init__(self, lemma_encoder, tag_encoder, two_step_decoder, padding_id, device='cpu') -> None:
         super().__init__()
         self.lemma_encoder = lemma_encoder
         self.tag_encoder = tag_encoder
         self.two_step_decoder = two_step_decoder
         self.padding_id = padding_id
+        self.device = device
     
     def forward(self, src, src_lengths, tags, bos_token_id, tgts = None, tgt_lengths = None):
         """_summary_
@@ -43,7 +44,7 @@ class TwoStepAttentionInflector(nn.Module):
 
                 decoder_outputs.append(decoder_output)
         else:
-            decoder_input = torch.ones(bs, dtype=torch.long, device='cuda') * bos_token_id# TODO: fill in with bos token.
+            decoder_input = torch.ones(bs, dtype=torch.long, device=self.device) * bos_token_id# TODO: fill in with bos token.
             max_chars = 25 # TODO: fill in.
             for i in range(0, max_chars):
                 decoder_output, decoder_hidden, _ = self.two_step_decoder(decoder_input, decoder_hidden, annotations_tag, annotations_lemma, attn_mask)
@@ -135,14 +136,15 @@ class GlobalAttention(nn.Module):
 
 class BidirectionalLemmaEncoder(nn.Module):
 
-    def __init__(self, embedding_layer, hidden_size) -> None:
+    def __init__(self, embedding_layer, hidden_size, device = 'cpu') -> None:
         super(BidirectionalLemmaEncoder, self).__init__()
         self.embedding_layer = embedding_layer
         self.gru_cell = nn.GRUCell(hidden_size, hidden_size)
         self.hidden_size = hidden_size
+        self.device = device
     
     def _init_hidden(self, bs):
-        return torch.zeros(bs, self.hidden_size, device='cuda') # TODO: make this an argument
+        return torch.zeros(bs, self.hidden_size, device=self.device) # TODO: make this an argument
 
     def forward(self, x, src_lengths):
         """
