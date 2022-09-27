@@ -1,0 +1,2 @@
+DEVICE = 'cpu'
+BATCH_SIZE = 10

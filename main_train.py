@@ -1,6 +1,9 @@
 import argparse
 import sys
 import pdb
+import scipy
+
+from packages.augmentation.diverse_augment import kmeans_augment
 from packages.visualizations.visualize import visualize_losses
 from packages.dataloading import vocab
 from packages.dataloading.morphology_dataloader import create_dataloader
@@ -23,8 +26,8 @@ import torch.nn.functional as F
 # NOTE: this should work for just morphological inflection. Reinflection is a bit more delicate.
 
 BATCH_SIZE = 10
-DEVICE = 'cpu'
 HIDDEN_DIM = 32
+DEVICE = 'cpu'
 
 sigm_uncorrupted_w_hall_df = pd.read_csv("data/eng_1000_w_hall_train.tsv", sep='\t')
 sigm_uncorrupted_df = sigm_uncorrupted_w_hall_df.iloc[0:1000]
@@ -33,13 +36,35 @@ padding_id = vocab_char.get_stoi()["<blank>"]
 bos_id = vocab_char.get_stoi()["<s>"]
 eos_id = vocab_char.get_stoi()["</s>"]
 
-def get_dataloaders(num_hall):
+def select_augmentation_points(strategy: str, augmentation_df: pd.DataFrame, num_hall: int) -> pd.DataFrame:
+    if strategy == "random":
+        sigm_hall_df = augmentation_df.sample(n=num_hall) # TODO: change this to use a specific strategy. 
+        return sigm_hall_df
+    elif strategy == "sample_by_uncertainty":
+        # apply softmax, then pass those into pandas.
+        r = 1
+        norm_vector = augmentation_df["length"].pow(r)
+        probs = scipy.special.softmax(augmentation_df['loss'] / norm_vector)
+        sigm_hall_df = augmentation_df.sample(n=num_hall, weights=probs)
+        return sigm_hall_df
+    elif strategy == "sample_by_encoding_diversity": # TODO: use k-means++ to do the selection.
+        # TODO implement
+        sigm_hall_df = kmeans_augment(augmentation_df, num_hall) 
+        return sigm_hall_df
+    elif strategy == "sample_by_gradient_diversity":
+        raise Exception("sampling by gradient embedding diversity is unimplemented")
+    else:
+        raise Exception("Unrecognized sampling strategy")
+    
+def get_dataloaders(num_hall, augmentation_strategy):
     # TODO: change this to load from our augmentation CSV instead.
-    sigm_hall_df = sigm_uncorrupted_w_hall_df.iloc[1000:]  
+    sigm_hall_df = pd.read_csv("results/spreadsheets/warm_start_model_aug_loss_unnormalized.csv")
     if num_hall == 0:
         sigm_hall_df = pd.DataFrame(columns=sigm_uncorrupted_df.columns)
     else:
-        sigm_hall_df = sigm_hall_df.sample(n=num_hall) # TODO: can this be 0?
+        # sigm_hall_df = sigm_hall_df.sample(n=num_hall) # TODO: change this to use a specific strategy. 
+        sigm_hall_df = select_augmentation_points(augmentation_strategy, sigm_hall_df, num_hall) # TODO: change this to use a specific strategy. 
+
 
     train_ratio = 0.75
     validation_ratio = 0.15
@@ -63,6 +88,7 @@ def get_dataloaders(num_hall):
 
 def get_data_augmentation_dataloader():
     sigm_hall_df = sigm_uncorrupted_w_hall_df.iloc[1000:]  
+    # sigm_hall_df = pd.read_csv("results/spreadsheets/warm_start_model_aug_loss.csv")
     sigm_hall_df['is_hallucinated'] = ([True] * len(sigm_hall_df))
     hall_sigm_dataset = SigmorphonDataset(sigm_hall_df)
     hall_dataloader = create_dataloader(hall_sigm_dataset, BATCH_SIZE, vocab_char, 
@@ -94,11 +120,22 @@ def compute_loss(x, y, norm):
 
 # TODO: try dividing by log of length, or something that gives more weight to longer examples. 
 def compute_loss_per_datapoint(x, y, norm_vec):
+    """Computes the unnormalized loss per datapoint
+
+    Args:
+        x (torch.tensor): Predictions
+        y (torch.tensor): Ground truth
+        norm_vec (torch.tensor): Number of predictions that are made per item in the batch.
+
+    Returns:
+        Unnormalized loss. Vector with {x.shape[0]} elements.
+    """
     loss_batch_size, loss_seq_len = x.shape[0], x.shape[1] 
     loss = criterion(x.contiguous().view(-1, x.size(-1)), 
                         y.contiguous().view(-1)) # NOTE: I presume this broadcasts... should check if anything goes wrong
     loss = loss.view(loss_batch_size, loss_seq_len) 
-    return loss.sum(axis=1) / norm_vec 
+    assert sum(loss[0][norm_vec[0]:]) == 0 # verifying that there's no loss for padding
+    return loss.sum(axis=1) 
 
 def run_train_epoch(train_dataloader, model):
     total_loss = 0
@@ -150,7 +187,10 @@ def test_model(dataloader, trained_model):
         for i in range(predictions.shape[0]):
             prediction = vocab_char.lookup_tokens(predictions[i].tolist()) # TODO: just ignore everything after the BOS token.
             actual = vocab_char.lookup_tokens(tgts[i].tolist())
-            prediction_labels.append(prediction[:prediction.index("</s>")])
+            if "</s>" in prediction:
+                prediction_labels.append(prediction[:prediction.index("</s>")])
+            else:
+                prediction_labels.append(prediction)
             actual_labels.append(actual[1:actual.index("</s>")])
             print(f"Prediction: {prediction}")
             print(f"Actual: {actual}")
@@ -194,13 +234,15 @@ def train_model(train_dataloader, val_dataloader, nepochs, save_model_name):
 #     model = init_model()
 #     train_dataloader = construct_dataloader(augmented_dataset)
 #     train_model(model, train_dataloader, nepochs=30)
-def visualize_loss_distribution(model):
+def visualize_loss_distribution(model, normalization_exp=1):
     load_model(model, "model_warm_start.pt")
     augmentation_dataloader = get_data_augmentation_dataloader()
     losses = []
     model.eval()
     src_text = []
     tgt_text = []
+    all_tags = []
+    lengths = []
     with torch.no_grad():
         for srcs, tgts, tags, src_lengths, tgt_lengths, _ in augmentation_dataloader:
             # srcs, src_lengths, tags, tgts, tgt_lengths = srcs.to(device), src_lengths.to(device), tags.to(device), tgts.to(device), tgt_lengths.to(device)
@@ -211,34 +253,42 @@ def visualize_loss_distribution(model):
             norm_vec = tgt_lengths - 1 
             loss = compute_loss_per_datapoint(predictions[:, :last_index -1], tgts[:, 1:last_index], norm_vec)  # -1 because we don't predict BOS
             losses.append(loss)
+            lengths.append(norm_vec)
 
             for i in range(predictions.shape[0]):
                 actual_src = ''.join(vocab_char.lookup_tokens(srcs[i].tolist()))
                 actual_tgt = ''.join(vocab_char.lookup_tokens(tgts[i].tolist()))
                 actual_src = actual_src[actual_src.index(">")+1:actual_src.index("/")-1]
                 actual_tgt = actual_tgt[actual_tgt.index(">")+1:actual_tgt.index("/")-1]
+                actual_tag = ';'.join(vocab_tag.lookup_tokens(tags[i].tolist()))
+                actual_tag = actual_tag[actual_tag.index(">")+2:actual_tag.index("/")-2]
+                all_tags.append(actual_tag)
                 src_text.append(actual_src)
                 tgt_text.append(actual_tgt)
 
     losses = torch.cat(losses)
     visualize_losses(losses)
+    lengths = torch.cat(lengths)
     frame = pd.DataFrame({
         "src": src_text, 
         "tgt": tgt_text,
+        "tag": all_tags,
+        "length": lengths,
         "loss": losses
     })
-    frame.to_csv("results/spreadsheets/warm_start_model_aug_loss.csv")
+    frame.to_csv(f"results/spreadsheets/warm_start_model_aug_loss_unnormalized.csv")
     return losses
 
 def main(args):
     if args.visualize_aug_loss_distribution:
+        # TODO: compare the
         visualize_loss_distribution(model)
     else:
         nepochs = 30
-        print(f"Training with {args.num_hall} augmented datapoints")
-        train_dataloader, val_dataloader, test_dataloader = get_dataloaders(args.num_hall)
+        print(f"Training with {args.num_hall} augmented datapoints, using {args.subsample_strategy} strategy.")
+        train_dataloader, val_dataloader, test_dataloader = get_dataloaders(args.num_hall, args.subsample_strategy)
         load_model_name = f"model_warm_start"
-        save_model_name = f"model_w_{args.num_hall}_aug_points"
+        save_model_name = f"model_w_{args.num_hall}_aug_points_{args.subsample_strategy}"
         if args.use_warm_start:
             print("Using warm start")
             load_model(model, fname=f"{load_model_name}.pt")
@@ -250,4 +300,5 @@ parser = argparse.ArgumentParser()
 parser.add_argument("num_hall", type=int)
 parser.add_argument("--use_warm_start", action='store_true')
 parser.add_argument("--visualize_aug_loss_distribution", action='store_true')
+parser.add_argument("subsample_strategy", type=str)
 main(parser.parse_args())
