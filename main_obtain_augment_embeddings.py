@@ -4,6 +4,7 @@ import torch
 import argparse
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 from packages.encoder_decoder_rnn.model import BidirectionalLemmaEncoder, TwoStepDecoderCell, make_inflector
 from packages.utils.constants import BATCH_SIZE, DEVICE
@@ -33,6 +34,7 @@ def get_embeddings(augmentation_dataframe, warm_start_model, vocab_char, vocab_t
             mean_annotations = annotations_sum / src_lengths.unsqueeze(-1)
             lemma_representations.append(mean_annotations)
     all_lemma_representations = torch.cat(lemma_representations).numpy()
+    all_lemma_representations = StandardScaler().fit_transform(all_lemma_representations)
     augmentation_rep_frame = pd.DataFrame(data= all_lemma_representations)
     augmentation_rep_frame['src'] = augmentation_dataframe['src']
     augmentation_rep_frame.to_csv("results/spreadsheets/augmentation_lemma_representations.csv")
