@@ -1,11 +1,12 @@
+import pandas as pd
 import numpy as np
 from .augment_selecter import AugmentationSelector 
 
 class RandomSampler(AugmentationSelector):
 
-    def __init__(self, initial_generation_frame): 
-        AugmentationSelector.__init__(self, initial_generation_frame)
+    def __init__(self, initial_generation_frame: pd.DataFrame, num_gold_examples: int): 
+        AugmentationSelector.__init__(self, initial_generation_frame, num_gold_examples)
     
-    # TODO: this assumes the augmented points are the last 10000 points
+    # NOTE: this assumes the augmented points are the last 10000 points
     def get_best_points(self, num_points): 
-        return self.generation_frame[100:].sample(num_points)
+        return self.generation_frame[self.num_gold_examples:].sample(num_points)

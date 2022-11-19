@@ -7,8 +7,8 @@ from .augment_selecter import AugmentationSelector
 
 class HighLossSampler(AugmentationSelector):
 
-    def __init__(self, likelihoods_path, initial_generation_frame, lengths=None): # TODO: add `lengths` implementation later. 
-        AugmentationSelector.__init__(self, initial_generation_frame)
+    def __init__(self, likelihoods_path, initial_generation_frame, num_gold_test_examples, lengths=None): # TODO: add `lengths` implementation later. 
+        AugmentationSelector.__init__(self, initial_generation_frame, num_gold_test_examples)
         # NOTE
         ## the indices in the example likelihoods correspond correspond to line numbers 
         ## in the test file that was used for producing the generations

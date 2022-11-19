@@ -10,6 +10,7 @@ from collections import defaultdict
 from packages.utils.constants import SIGM_DATA_PATH, SCRATCH_PATH, FAIRSEQ_SCRIPTS_PATH
 from packages.augmentation.select_highest_loss import HighLossSampler
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter
+from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame
 
 def tokenize_row_src(row):
     tokens = list(row.src) + row.tag.split(";")
@@ -18,15 +19,6 @@ def tokenize_row_src(row):
 def tokenize_row_tgt(row):
     tokens = list(row.tgt)
     return " ".join(tokens)
-
-def get_initial_generation_frame(language): # concatenation of test file and augmentation file.
-    test_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-test", header=None, names=["src", "tgt" ,"tag"], sep='\t')
-    assert len(test_frame) == 100 # NOTE: if this fails, it will be problematic. Other code (e.g., RandomSampler assumes 100 datapoints trainng points)
-    augmentation_frame = pd.read_csv(f"data/spreadsheets/augmentations/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
-    assert len(augmentation_frame) == 10000 # NOTE: if this fails, it will be problematic. Other code (e.g., RandomSampler assumes 10,000 real datapoints)
-
-    test_frame = pd.concat([test_frame, augmentation_frame]) # this is for the initial model, so we can get likelihoods and generations
-    return test_frame.reset_index(drop=True)
 
 def _write_split(language, augmentation_type, split_frame, split_name):
     if not os.path.exists(f"{SCRATCH_PATH}/{language}/{augmentation_type}"):
@@ -50,10 +42,8 @@ def load_gold_train_validation_test(language):
 # TODO: do these for all files
 def prep_preproc_fairseq_data_initial(language, augmentation_type):
     train_frame, validation_frame, test_frame = load_gold_train_validation_test(language)
-    augmentation_frame = pd.read_csv(f"data/spreadsheets/augmentations/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
 
-    # TODO: replace with get_initial_generation_frame 
-    test_frame = get_initial_generation_frame([test_frame, augmentation_frame]) # this is for the initial model, so we can get likelihoods and generations
+    test_frame = get_initial_generation_frame(language)
 
     # TODO: we need to write this to a separate scratch directory.
     _write_split(language, augmentation_type, train_frame, "train-low")
@@ -65,9 +55,6 @@ def run_fairseq_binarizer(language, augmentation_type):
     print(f"Obtained {result} result")
 
 def train_model(language, augmentation_type):
-    # preproc_dir = f"{SCRATCH_PATH}/{language}_fairseq_bin"
-
-    # save_dir = f"{SCRATCH_PATH}/{language}_model_checkpoints"
     result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/train_model.sh", f"{SCRATCH_PATH}/{language}/{augmentation_type}", language])
     print(f"Obtained {result} result")
 
@@ -75,8 +62,11 @@ def generate(language, augmentation_type):
     result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/generate.sh", f"{SCRATCH_PATH}/{language}/{augmentation_type}", language])
     print(f"Obtained {result} result")
 
-# NOTE: do all the test files have exactly 100 cases? If not, have to supply number of test examples.
-def report_accuracy(language, augmentation_type, num_test_examples=100): 
+def get_number_test_examples(language):
+    test_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-test", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+    return len(test_frame)
+
+def report_accuracy(language, augmentation_type, num_test_examples): 
     predictions = []
     golds = []
     with open(f"{SCRATCH_PATH}/{language}/{augmentation_type}/{language}_results.txt", 'r') as predictions_f:
@@ -107,10 +97,19 @@ def report_accuracy(language, augmentation_type, num_test_examples=100):
         if prediction == gold:
             num_correct += 1
         total += 1
-    assert total == 100
-    print(f"Accuracy of {num_correct/total}")
+    assert total == num_test_examples
+    print(f"For language {language}, we obtain an accuracy of {num_correct/total} when using augmentation strategy {augmentation_type}")
 
-def extract_log_likelihoods(language, num_test_examples = 100):
+def extract_log_likelihoods(language, num_test_examples ):
+    """Extracts log likelihoods only for augmented datapoints. 
+    Assumes that the generation file has hypotheses that are numbered
+    so that {S-[0...num_test_examples]} refer to the gold test examples, while
+    everything after refers to the augmented examples.
+
+    Args:
+        language (str) 
+        num_test_examples (int, optional): Number of gold test examples. 
+    """
     avg_log_likelihoods = []
     with open(f"{SCRATCH_PATH}/{language}/initial/{language}_results.txt", 'r') as predictions_f:
         while not predictions_f.readline().startswith("Generate"): # this skips the source
@@ -127,7 +126,7 @@ def extract_log_likelihoods(language, num_test_examples = 100):
 
     assert len(avg_log_likelihoods) == 10000
 
-def probe_initial_representations(language):
+def probe_initial_representations(language, number_test_examples):
     path = f"{SCRATCH_PATH}/{language}/initial"
 
     token_id_to_embeds = defaultdict(list)
@@ -146,7 +145,7 @@ def probe_initial_representations(language):
             token_ids = np.array(token_ids_dict[seq_len])
             item_ids = np.array(item_id_dict[seq_len])
             for i in range(token_ids.shape[0]): # iterating over number of items
-                if item_ids[i] < 100: # 100 is number of ground truth items
+                if item_ids[i] < number_test_examples:
                     processed_items.add(item_ids[i])
                     for j in range(token_ids.shape[1]): # iterating over sequence length
                         token_id_to_embeds[token_ids[i, j]].append(embeds[j, i])
@@ -155,13 +154,14 @@ def probe_initial_representations(language):
         # for k, v in token_id_to_embeds:
         #     token_id_to_embeds[k] = np.vstack(v).to
     pdb.set_trace()
-    with open(f"{path}/bengali_token_id_to_embeds.pickle", "wb") as handle:
+    with open(f"{path}/{language}_token_id_to_embeds.pickle", "wb") as handle:
         pickle.dump(token_id_to_embeds, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def prep_preproc_fairseq_data_augment(language, augmentation_type):
     train_frame, validation_frame, test_frame = load_gold_train_validation_test(language)
     initial_generation_frame = get_initial_generation_frame(language) # contains gold test + original 10,000 test examples.
-    subset_sampler = get_subset_selecter(language, augmentation_type, f"{SCRATCH_PATH}/{language}/initial", initial_generation_frame)
+    num_gold_test_examples = get_number_test_examples(language)
+    subset_sampler = get_subset_selecter(language, augmentation_type, f"{SCRATCH_PATH}/{language}/initial", initial_generation_frame, num_gold_test_examples)
     # TODO: need to prefix with the number of points that are selected.
     subset_augmentation_frame = subset_sampler.get_best_points(128) 
 
@@ -182,13 +182,12 @@ def main(args):
         train_model(args.language, args.augmentation_type)
     elif args.generate:
         generate(args.language, args.augmentation_type)
-
     elif args.report_accuracy:
-        report_accuracy(args.language, args.augmentation_type)
+        report_accuracy(args.language, args.augmentation_type, get_number_test_examples(args.language))
     elif args.probe_initial_representations:
-        probe_initial_representations(args.language)
+        probe_initial_representations(args.language, get_number_test_examples(args.language))
     elif args.extract_log_likelihoods:
-        extract_log_likelihoods(args.language)
+        extract_log_likelihoods(args.language, get_number_test_examples(args.language))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
