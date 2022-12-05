@@ -2,6 +2,7 @@ import pdb
 import pickle
 import os 
 import pandas as pd
+from typing import Dict
 from .select_highest_loss import HighLossSampler
 from .random_sampler import RandomSampler
 from .diverse_sampler import DiverseSampler
@@ -21,7 +22,8 @@ def _load_initial_representations_bundle(scratch_path_initial, language):
 
 def get_subset_selecter(language: str, augment_strategy: str, scratch_path_initial: str, 
                         initial_test_frame: pd.DataFrame, 
-                        num_gold_test_examples: int):
+                        num_gold_test_examples: int,
+                        **kwargs: Dict):
     if augment_strategy == "uncertainty_sample":
         # TODO: construct the likelihood path. assert that it exists
         likelihood_pkl_path = f"{scratch_path_initial}/{language}_log_likelihoods.pickle"
@@ -31,7 +33,8 @@ def get_subset_selecter(language: str, augment_strategy: str, scratch_path_initi
         return RandomSampler(initial_test_frame, num_gold_test_examples)
     elif augment_strategy == "diversity_sample":
         embeddings_dict, item_id_dict, token_ids_dict, src_dict = _load_initial_representations_bundle(scratch_path_initial, language)
-        return DiverseSampler(embeddings_dict, item_id_dict, token_ids_dict, src_dict, 16, initial_test_frame, num_gold_test_examples) # initially tried 8 clusters. got 38%. now trying more :)
+        k = kwargs['k']
+        return DiverseSampler(embeddings_dict, item_id_dict, token_ids_dict, src_dict, k, initial_test_frame, num_gold_test_examples) 
         # TODO: we need the embeddings for this.
     else:
         raise Exception(f"No strategy {augment_strategy}")

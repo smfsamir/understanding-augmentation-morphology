@@ -1,8 +1,10 @@
+from packages.utils.constants import SCRATCH_PATH
+
 import torch
 from torch.utils.checkpoint import checkpoint
 import os
 
-def checkpoint_model(model, fname="model.pt", path="checkpoints"):
+def checkpoint_model(model, fname="model.pt", path=f"{SCRATCH_PATH}/checkpoints"):
     if not os.path.exists(path):
         os.makedirs(path)
     torch.save(
@@ -12,7 +14,7 @@ def checkpoint_model(model, fname="model.pt", path="checkpoints"):
         f"{path}/{fname}" 
     )
 
-def load_model(model, fname="model.pt", path="checkpoints"):
+def load_model(model, fname="model.pt", path=f"{SCRATCH_PATH}/checkpoints"):
     with open(f"{path}/{fname}", 'rb'):
         checkpoint = torch.load(
             f"{path}/{fname}"

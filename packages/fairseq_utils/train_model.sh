@@ -2,11 +2,11 @@
 
 SCRATCHDIR=$1
 LANG=$2
-
+ALGORITHM=$3
 
 cd "$SCRATCHDIR" || exit
 PREPROCESS="${LANG}_fairseq_bin"
-SAVEPREF="${LANG}_model_checkpoints"
+SAVEPREF="${LANG}_${ALGORITHM}_model_checkpoints"
 mkdir -p "${SAVEPREF}"
 
 fairseq-train $PREPROCESS \
@@ -40,4 +40,5 @@ fairseq-train $PREPROCESS \
     --max-update 20000 \
     --update-freq 1 \
     --max-epoch 1000 \
-    --log-format json --log-interval 20 
+    --wandb-project subset-selection-augmentation \
+    --log-format json --log-interval 20  

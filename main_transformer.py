@@ -11,6 +11,7 @@ from packages.utils.constants import SIGM_DATA_PATH, SCRATCH_PATH, FAIRSEQ_SCRIP
 from packages.augmentation.select_highest_loss import HighLossSampler
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter
 from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame
+from packages.utils.util_functions import get_model_augment_path
 
 def tokenize_row_src(row):
     tokens = list(row.src) + row.tag.split(";")
@@ -20,16 +21,17 @@ def tokenize_row_tgt(row):
     tokens = list(row.tgt)
     return " ".join(tokens)
 
-def _write_split(language, augmentation_type, split_frame, split_name):
-    if not os.path.exists(f"{SCRATCH_PATH}/{language}/{augmentation_type}"):
-        os.makedirs(f"{SCRATCH_PATH}/{language}/{augmentation_type}")
+def _write_split(language, augmentation_type, split_frame, split_name, **kwargs): 
+    model_augment_path = get_model_augment_path(language, augmentation_type, **kwargs)
+    if not os.path.exists(model_augment_path):
+        os.makedirs(model_augment_path)
 
     # write src
-    with open(f"{SCRATCH_PATH}/{language}/{augmentation_type}/{language}-{split_name}.src", "w") as fseq_src_f:
+    with open(f"{model_augment_path}/{language}-{split_name}.src", "w") as fseq_src_f:
         split_frame.apply(lambda row: fseq_src_f.write(f"{tokenize_row_src(row)}\n"), 
                         axis=1)  # rows
     # write tgt
-    with open(f"{SCRATCH_PATH}/{language}/{augmentation_type}/{language}-{split_name}.tgt", "w") as fseq_tgt_f:
+    with open(f"{model_augment_path}/{language}-{split_name}.tgt", "w") as fseq_tgt_f:
         split_frame.apply(lambda row: fseq_tgt_f.write(f"{tokenize_row_tgt(row)}\n"), 
                         axis=1)  # rows
 
@@ -50,26 +52,40 @@ def prep_preproc_fairseq_data_initial(language, augmentation_type):
     _write_split(language, augmentation_type, validation_frame, "valid")
     _write_split(language, augmentation_type, test_frame, "test")
 
-def run_fairseq_binarizer(language, augmentation_type):
-    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/preprocess.sh", f"{SCRATCH_PATH}/{language}/{augmentation_type}", language])
+
+# TODO: have to change everything below to work with the new type of directories.
+def run_fairseq_binarizer(language, augmentation_type, **kwargs):
+    model_augment_path = get_model_augment_path(language, augmentation_type, **kwargs)
+    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/preprocess.sh", model_augment_path, language])
     print(f"Obtained {result} result")
 
-def train_model(language, augmentation_type):
-    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/train_model.sh", f"{SCRATCH_PATH}/{language}/{augmentation_type}", language])
+def train_model(language, augmentation_type, **kwargs):
+    model_augment_path = get_model_augment_path(language, augmentation_type, **kwargs)
+    algorithm_type = model_augment_path.split('/')[-1]
+    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/train_model.sh", model_augment_path, language, algorithm_type])
     print(f"Obtained {result} result")
 
-def generate(language, augmentation_type):
-    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/generate.sh", f"{SCRATCH_PATH}/{language}/{augmentation_type}", language])
+def generate(language, augmentation_type, **kwargs):
+    model_augment_path = get_model_augment_path(language, augmentation_type, **kwargs)
+    algorithm_type = model_augment_path.split('/')[-1]
+    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/generate.sh", model_augment_path, language, algorithm_type])
     print(f"Obtained {result} result")
 
-def get_number_test_examples(language):
+def rename_initial_embeddings(language):
+    model_augment_path = get_model_augment_path(language, 'initial')
+    result = subprocess.run([f"{FAIRSEQ_SCRIPTS_PATH}/mv_initial_embeddings.sh", model_augment_path, language])
+    print(f"Obtained {result} result for renaming initial embeddings")
+
+def get_number_test_examples(language, **kwargs):
     test_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-test", header=None, names=["src", "tgt" ,"tag"], sep='\t')
     return len(test_frame)
 
-def report_accuracy(language, augmentation_type, num_test_examples): 
+
+def report_accuracy(language, augmentation_type, num_test_examples, **kwargs): 
     predictions = []
     golds = []
-    with open(f"{SCRATCH_PATH}/{language}/{augmentation_type}/{language}_results.txt", 'r') as predictions_f:
+    model_augment_path = get_model_augment_path(language, augmentation_type, **kwargs)
+    with open(f"{model_augment_path}/{language}_results.txt", 'r') as predictions_f:
 
         num_blocks = 0
         while not predictions_f.readline().startswith("Generate"): # this skips the source
@@ -98,7 +114,8 @@ def report_accuracy(language, augmentation_type, num_test_examples):
             num_correct += 1
         total += 1
     assert total == num_test_examples
-    print(f"For language {language}, we obtain an accuracy of {num_correct/total} when using augmentation strategy {augmentation_type}")
+    with open(f"{model_augment_path}/final_results.txt", 'w') as accuracy_res_f:
+        accuracy_res_f.write(f"For language {language}, we obtain an accuracy of {num_correct/total} when using augmentation strategy {augmentation_type}")
 
 def extract_log_likelihoods(language, num_test_examples ):
     """Extracts log likelihoods only for augmented datapoints. 
@@ -111,7 +128,7 @@ def extract_log_likelihoods(language, num_test_examples ):
         num_test_examples (int, optional): Number of gold test examples. 
     """
     avg_log_likelihoods = []
-    with open(f"{SCRATCH_PATH}/{language}/initial/{language}_results.txt", 'r') as predictions_f:
+    with open(f"{SCRATCH_PATH}/{language}/initial_/{language}_results.txt", 'r') as predictions_f:
         while not predictions_f.readline().startswith("Generate"): # this skips the source
             predictions_f.readline() # skip target line
             hypothesis_line = predictions_f.readline()
@@ -121,7 +138,7 @@ def extract_log_likelihoods(language, num_test_examples ):
                 avg_log_likelihoods.append((example_num, confidence))
             predictions_f.readline() # skip Detokenized line
             predictions_f.readline() # skip per token line
-    with open(f"{SCRATCH_PATH}/{language}/initial/{language}_log_likelihoods.pickle", "wb") as ll_handle: 
+    with open(f"{SCRATCH_PATH}/{language}/initial_/{language}_log_likelihoods.pickle", "wb") as ll_handle: 
         pickle.dump(avg_log_likelihoods, ll_handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     assert len(avg_log_likelihoods) == 10000
@@ -157,27 +174,61 @@ def probe_initial_representations(language, number_test_examples):
     with open(f"{path}/{language}_token_id_to_embeds.pickle", "wb") as handle:
         pickle.dump(token_id_to_embeds, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def prep_preproc_fairseq_data_augment(language, augmentation_type):
+def prep_preproc_fairseq_data_augment(language, augmentation_type, **kwargs):
     train_frame, validation_frame, test_frame = load_gold_train_validation_test(language)
     initial_generation_frame = get_initial_generation_frame(language) # contains gold test + original 10,000 test examples.
     num_gold_test_examples = get_number_test_examples(language)
-    subset_sampler = get_subset_selecter(language, augmentation_type, f"{SCRATCH_PATH}/{language}/initial", initial_generation_frame, num_gold_test_examples)
+    subset_sampler = get_subset_selecter(language, augmentation_type, f"{SCRATCH_PATH}/{language}/initial_", initial_generation_frame, num_gold_test_examples, **kwargs)
     # TODO: need to prefix with the number of points that are selected.
-    subset_augmentation_frame = subset_sampler.get_best_points(128) 
+    subset_augmentation_frame = subset_sampler.get_best_points(kwargs['num_augmentations']) 
 
     train_augmented_frame = pd.concat([train_frame, subset_augmentation_frame])
-    _write_split(language, augmentation_type, train_augmented_frame, "train-low")
-    _write_split(language, augmentation_type, validation_frame, "valid")
-    _write_split(language, augmentation_type, test_frame, "test")
+    _write_split(language, augmentation_type, train_augmented_frame, "train-low", **kwargs)
+    _write_split(language, augmentation_type, validation_frame, "valid", **kwargs)
+    _write_split(language, augmentation_type, test_frame, "test", **kwargs)
+
+def run_initial_pipeline(language):
+    prep_preproc_fairseq_data_initial(language, 'initial')
+    run_fairseq_binarizer(language, 'initial')
+    train_model(language, 'initial')
+    generate(language, 'initial')
+    report_accuracy(language, 'initial', get_number_test_examples(language))
+    extract_log_likelihoods(language, get_number_test_examples(language))
+    rename_initial_embeddings(language)
+
+def run_k_diverse_sampling_pipeline(language): 
+    # k_range = [8, 16, 32, 64, 128, 256, 512]
+    # k_range = [8, 16, 32, 64, 128, 256, 512]
+    k_range = [32]
+    for k in k_range:
+        prep_preproc_fairseq_data_augment(language, 'diversity_sample', k=k)
+        run_fairseq_binarizer(language, 'diversity_sample', k=k)
+        train_model(language, 'diversity_sample', k=k)
+        generate(language, 'diversity_sample', k=k)
+        report_accuracy(language, 'diversity_sample', get_number_test_examples(language), k=k)
+
+def run_random_sampling_pipeline(language): 
+    prep_preproc_fairseq_data_augment(language, 'random')
+    run_fairseq_binarizer(language, 'random')
+    train_model(language, 'random')
+    generate(language, 'random')
+    report_accuracy(language, 'random', get_number_test_examples(language))
+
+def run_uncertainty_sampling_pipeline(language): 
+    prep_preproc_fairseq_data_augment(language, 'uncertainty_sample')
+    run_fairseq_binarizer(language, 'uncertainty_sample')
+    train_model(language, 'uncertainty_sample')
+    generate(language, 'uncertainty_sample')
+    report_accuracy(language, 'uncertainty_sample', get_number_test_examples(language))
 
 def main(args):
-    # Fairseq pipeline
+    # atomic
     if args.prep_preproc_fairseq_data_initial:
         prep_preproc_fairseq_data_initial(args.language, args.augmentation_type)
     if args.prep_preproc_fairseq_data_augment:
-        prep_preproc_fairseq_data_augment(args.language, args.augmentation_type)
+        prep_preproc_fairseq_data_augment(args.language, args.augmentation_type, diverse_sample_k=args.diverse_sample_k)
     elif args.run_fairseq_binarizer:
-        run_fairseq_binarizer(args.language, args.augmentation_type)
+        run_fairseq_binarizer(args.language, args.augmentation_type) # TODO: 
     elif args.train_model:
         train_model(args.language, args.augmentation_type)
     elif args.generate:
@@ -189,10 +240,21 @@ def main(args):
     elif args.extract_log_likelihoods:
         extract_log_likelihoods(args.language, get_number_test_examples(args.language))
 
+    # pipelines
+    elif args.run_initial_pipeline:
+        run_initial_pipeline(args.language)
+    elif args.run_k_diverse_sampling_pipeline:
+        run_k_diverse_sampling_pipeline(args.language)
+    elif args.run_uncertainty_sampling_pipeline:
+        run_uncertainty_sampling_pipeline(args.language)
+    elif args.run_random_sampling_pipeline:
+        run_random_sampling_pipeline(args.language)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("language", type=str)
     parser.add_argument("augmentation_type", type=str) # when starting out, just put "initial".
+    parser.add_argument("num_augmentations", type=str) # when starting out, just put "initial".
     parser.add_argument("--prep_preproc_fairseq_data_initial", action='store_true')
     parser.add_argument("--prep_preproc_fairseq_data_augment", action='store_true')
     parser.add_argument("--probe_initial_representations", action='store_true')
@@ -201,4 +263,10 @@ if __name__ == "__main__":
     parser.add_argument("--generate", action='store_true')
     parser.add_argument("--report_accuracy", action='store_true')
     parser.add_argument("--extract_log_likelihoods", action='store_true')
+    parser.add_argument("--diverse_sample_k", type=int, default=0)
+
+    parser.add_argument("--run_initial_pipeline", action='store_true')
+    parser.add_argument("--run_k_diverse_sampling_pipeline", action='store_true')
+    parser.add_argument("--run_uncertainty_sampling_pipeline", action='store_true')
+    parser.add_argument("--run_random_sampling_pipeline", action='store_true')
     main(parser.parse_args())

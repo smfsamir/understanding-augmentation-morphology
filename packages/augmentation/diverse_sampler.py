@@ -68,7 +68,7 @@ class DiverseSampler(AugmentationSelector):
         return frame
 
     def get_best_points(self, num_points):
-        X = self.embed_frame[list(range(256))]
+        X = self.embed_frame[list(range(256))] # 256 is the embedding dimensionality.
         X = StandardScaler().fit_transform(X)
         kmeans = KMeans(n_clusters=self.nclusters)
         kmeans_labels = pd.Series(kmeans.fit_predict(X))
@@ -76,7 +76,6 @@ class DiverseSampler(AugmentationSelector):
             "orig_id": self.embed_frame["orig_id"].values, 
             "kmeans_label": kmeans_labels
         })
-        # TODO: need to see if this works with some fake data..
         klabel_to_value = kmeans_frame['kmeans_label'].sample(num_points).value_counts().to_dict()
         sample_frames = []
         for klabel, num_samples in klabel_to_value.items():

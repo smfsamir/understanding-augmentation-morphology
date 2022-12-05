@@ -2,11 +2,11 @@
 
 SCRATCHDIR=$1
 LANG=$2
+ALGORITHM=$3
 
 cd "$SCRATCHDIR" || exit
 PREPROCESS="${LANG}_fairseq_bin"
-SAVEPREF="${LANG}_model_checkpoints"
-
+SAVEPREF="${LANG}_${ALGORITHM}_model_checkpoints"
 
 fairseq-generate $PREPROCESS \
     --path $SAVEPREF/checkpoint_best.pt \
