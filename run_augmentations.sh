@@ -13,9 +13,10 @@
 # python main_transformer.py turkish uncertainty_sample --run_uncertainty_sampling_pipeline # the initial keyword doesn't matter
 # python main_transformer.py turkish diversity_sample --run_k_diverse_sampling_pipeline # the augmentation strategy keyword doesn't matter since we're using a pipeline.
 # python main_transformer.py turkish random --run_random_sampling_pipeline # the augmentation strategy keyword doesn't matter, since we're using a pipeline.
+python main_transformer.py turkish random 10000 --run_random_sampling_pipeline
 
 # rm -rf /home/fsamir8/scratch/augmentation_subset_select/bengali/uncertainty_sample/
-python main_transformer.py arabic uncertainty_sample --run_uncertainty_sampling_pipeline # the augmentation strategy keyword doesn't matter, since we're using a pipeline.
+# python main_transformer.py arabic uncertainty_sample --run_uncertainty_sampling_pipeline # the augmentation strategy keyword doesn't matter, since we're using a pipeline.
 
 # python main_transformer.py arabic initial --prep_preproc_fairseq_data_initial || { echo 'creating src tgt files failed' ; exit 1; }
 # python main_transformer.py arabic initial --run_fairseq_binarizer || { echo 'running fairseq preprocesser failed' ; exit 1; }

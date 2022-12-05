@@ -180,14 +180,14 @@ def prep_preproc_fairseq_data_augment(language, augmentation_type, **kwargs):
     num_gold_test_examples = get_number_test_examples(language)
     subset_sampler = get_subset_selecter(language, augmentation_type, f"{SCRATCH_PATH}/{language}/initial_", initial_generation_frame, num_gold_test_examples, **kwargs)
     # TODO: need to prefix with the number of points that are selected.
-    subset_augmentation_frame = subset_sampler.get_best_points(kwargs['num_augmentations']) 
+    subset_augmentation_frame = subset_sampler.get_best_points(kwargs['num_aug']) 
 
     train_augmented_frame = pd.concat([train_frame, subset_augmentation_frame])
     _write_split(language, augmentation_type, train_augmented_frame, "train-low", **kwargs)
     _write_split(language, augmentation_type, validation_frame, "valid", **kwargs)
     _write_split(language, augmentation_type, test_frame, "test", **kwargs)
 
-def run_initial_pipeline(language):
+def run_initial_pipeline(language, num_aug):
     prep_preproc_fairseq_data_initial(language, 'initial')
     run_fairseq_binarizer(language, 'initial')
     train_model(language, 'initial')
@@ -196,26 +196,26 @@ def run_initial_pipeline(language):
     extract_log_likelihoods(language, get_number_test_examples(language))
     rename_initial_embeddings(language)
 
-def run_k_diverse_sampling_pipeline(language): 
+def run_k_diverse_sampling_pipeline(language, num_aug): 
     # k_range = [8, 16, 32, 64, 128, 256, 512]
     # k_range = [8, 16, 32, 64, 128, 256, 512]
     k_range = [32]
     for k in k_range:
-        prep_preproc_fairseq_data_augment(language, 'diversity_sample', k=k)
+        prep_preproc_fairseq_data_augment(language, 'diversity_sample', k=k, num_aug=num_aug)
         run_fairseq_binarizer(language, 'diversity_sample', k=k)
         train_model(language, 'diversity_sample', k=k)
         generate(language, 'diversity_sample', k=k)
         report_accuracy(language, 'diversity_sample', get_number_test_examples(language), k=k)
 
-def run_random_sampling_pipeline(language): 
-    prep_preproc_fairseq_data_augment(language, 'random')
+def run_random_sampling_pipeline(language, num_aug): 
+    prep_preproc_fairseq_data_augment(language, 'random', num_aug=num_aug)
     run_fairseq_binarizer(language, 'random')
     train_model(language, 'random')
     generate(language, 'random')
     report_accuracy(language, 'random', get_number_test_examples(language))
 
-def run_uncertainty_sampling_pipeline(language): 
-    prep_preproc_fairseq_data_augment(language, 'uncertainty_sample')
+def run_uncertainty_sampling_pipeline(language, num_aug): 
+    prep_preproc_fairseq_data_augment(language, 'uncertainty_sample', num_aug=num_aug)
     run_fairseq_binarizer(language, 'uncertainty_sample')
     train_model(language, 'uncertainty_sample')
     generate(language, 'uncertainty_sample')
@@ -242,19 +242,19 @@ def main(args):
 
     # pipelines
     elif args.run_initial_pipeline:
-        run_initial_pipeline(args.language)
+        run_initial_pipeline(args.language, args.num_aug)
     elif args.run_k_diverse_sampling_pipeline:
-        run_k_diverse_sampling_pipeline(args.language)
+        run_k_diverse_sampling_pipeline(args.language, args.num_aug)
     elif args.run_uncertainty_sampling_pipeline:
-        run_uncertainty_sampling_pipeline(args.language)
+        run_uncertainty_sampling_pipeline(args.language, args.num_aug)
     elif args.run_random_sampling_pipeline:
-        run_random_sampling_pipeline(args.language)
+        run_random_sampling_pipeline(args.language, args.num_aug)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("language", type=str)
     parser.add_argument("augmentation_type", type=str) # when starting out, just put "initial".
-    parser.add_argument("num_augmentations", type=str) # when starting out, just put "initial".
+    parser.add_argument("num_aug", type=int) # when starting out, just put "initial".
     parser.add_argument("--prep_preproc_fairseq_data_initial", action='store_true')
     parser.add_argument("--prep_preproc_fairseq_data_augment", action='store_true')
     parser.add_argument("--probe_initial_representations", action='store_true')
