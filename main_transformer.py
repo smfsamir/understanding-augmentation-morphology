@@ -80,7 +80,6 @@ def get_number_test_examples(language, **kwargs):
     test_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-test", header=None, names=["src", "tgt" ,"tag"], sep='\t')
     return len(test_frame)
 
-
 def report_accuracy(language, augmentation_type, num_test_examples, **kwargs): 
     predictions = []
     golds = []
@@ -209,10 +208,10 @@ def run_k_diverse_sampling_pipeline(language, num_aug):
 
 def run_random_sampling_pipeline(language, num_aug): 
     prep_preproc_fairseq_data_augment(language, 'random', num_aug=num_aug)
-    run_fairseq_binarizer(language, 'random')
-    train_model(language, 'random')
-    generate(language, 'random')
-    report_accuracy(language, 'random', get_number_test_examples(language))
+    run_fairseq_binarizer(language, 'random', num_aug=num_aug)
+    train_model(language, 'random', num_aug=num_aug)
+    generate(language, 'random', num_aug=num_aug)
+    report_accuracy(language, 'random', get_number_test_examples(language), num_aug=num_aug)
 
 def run_uncertainty_sampling_pipeline(language, num_aug): 
     prep_preproc_fairseq_data_augment(language, 'uncertainty_sample', num_aug=num_aug)
