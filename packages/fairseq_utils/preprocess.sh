@@ -9,4 +9,4 @@ echo $LANG
 cd "$SCRATCHDIR" || exit
 DESTDIR="${LANG}_fairseq_bin"
 mkdir -p "${DESTDIR}"
-fairseq-preprocess --source-lang src --target-lang tgt --trainpref $LANG-train-low --validpref $LANG-valid --testpref $LANG-test  --destdir $DESTDIR
+fairseq-preprocess --source-lang src --target-lang tgt --trainpref $LANG-train --validpref $LANG-valid --testpref $LANG-test  --destdir $DESTDIR 

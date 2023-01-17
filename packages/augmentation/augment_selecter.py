@@ -9,7 +9,7 @@ class AugmentationSelector:
         pass
     
     def get_augmentation_frame(self, indices: np.array):
-        return self.generation_frame.iloc[indices]
+        return self.generation_frame.loc[indices]
 
-    def get_best_points(self, num_points):
+    def get_best_points(self, num_points: int) -> pd.DataFrame:
         raise NotImplementedError()

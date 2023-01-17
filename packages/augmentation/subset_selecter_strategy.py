@@ -6,6 +6,7 @@ from typing import Dict
 from .select_highest_loss import HighLossSampler
 from .random_sampler import RandomSampler
 from .diverse_sampler import DiverseSampler
+from .uniform_abstract_sampler import UniformAbstractSampler
 
 def _load_initial_representations_bundle(scratch_path_initial, language):
     # NOTE: the "_true_initial" suffix is necessary due to the way we constructed the embeddings.
@@ -23,14 +24,23 @@ def _load_initial_representations_bundle(scratch_path_initial, language):
 def get_subset_selecter(language: str, augment_strategy: str, scratch_path_initial: str, 
                         initial_test_frame: pd.DataFrame, 
                         num_gold_test_examples: int,
+                        lengths: pd.Series,
                         **kwargs: Dict):
     if augment_strategy == "uncertainty_sample":
         # TODO: construct the likelihood path. assert that it exists
         likelihood_pkl_path = f"{scratch_path_initial}/{language}_log_likelihoods.pickle"
-        assert os.path.exists(likelihood_pkl_path) 
-        return HighLossSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples) 
+        use_softmax_normalizer = kwargs['use_softmax_normalizer']
+        r = kwargs['r']
+        use_high_loss = kwargs['use_high_loss']
+        assert os.path.exists(likelihood_pkl_path), f"Couldn't find likelihood file at {likelihood_pkl_path}"
+        return HighLossSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples,  use_softmax_normalizer, lengths, r, use_high_loss)
     elif augment_strategy == "random":
         return RandomSampler(initial_test_frame, num_gold_test_examples)
+    elif augment_strategy == "uat":
+        likelihood_pkl_path = f"{scratch_path_initial}/{language}_log_likelihoods.pickle"
+        use_empirical = kwargs['use_empirical']
+        use_loss = kwargs['use_loss']
+        return UniformAbstractSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples, use_empirical, use_loss)
     elif augment_strategy == "diversity_sample":
         embeddings_dict, item_id_dict, token_ids_dict, src_dict = _load_initial_representations_bundle(scratch_path_initial, language)
         k = kwargs['k']

@@ -37,8 +37,7 @@ fairseq-train $PREPROCESS \
     --warmup-init-lr 1e-7 --lr 0.001 --stop-min-lr 1e-9 \
     --keep-interval-updates 20 \
     --max-tokens 2000 \
-    --max-update 20000 \
+    --max-update 6000 \
     --update-freq 1 \
-    --max-epoch 1000 \
     --wandb-project subset-selection-augmentation \
     --log-format json --log-interval 20  

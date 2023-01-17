@@ -13,7 +13,6 @@ from packages.dataloading.morphology_dataloader import create_dataloader
 from packages.dataloading.vocab import load_vocab
 from packages.utils.checkpointing import load_model
 
-
 # TODO: fill in k-means clusters.
 def get_embeddings(augmentation_dataframe, warm_start_model, vocab_char, vocab_tag):
     lemma_encoder = warm_start_model.lemma_encoder # extract from warm-started model; start wiht this.
@@ -39,8 +38,6 @@ def get_embeddings(augmentation_dataframe, warm_start_model, vocab_char, vocab_t
     augmentation_rep_frame['src'] = augmentation_dataframe['src']
     augmentation_rep_frame.to_csv("results/spreadsheets/augmentation_lemma_representations.csv")
     return augmentation_rep_frame
-
-
     # k_means_assignments = #... same size as lemma representations. save to same csv.
 
 def obtain_kmeans_assignments():

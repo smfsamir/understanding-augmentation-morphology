@@ -9,3 +9,8 @@ def get_initial_generation_frame(language): # concatenation of test file and aug
 
     test_frame = pd.concat([test_frame, augmentation_frame]) # this is for the initial model, so we can get likelihoods and generations
     return test_frame.reset_index(drop=True)
+
+def get_augmentation_example_lengths(initial_generation_frame, num_gold_test_examples):
+    augmentation_frame = initial_generation_frame.iloc[num_gold_test_examples: ]
+    lengths = augmentation_frame['tgt'].apply(len)
+    return lengths

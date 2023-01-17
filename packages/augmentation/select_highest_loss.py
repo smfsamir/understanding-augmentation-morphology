@@ -1,19 +1,31 @@
+import pickle as pkl
+import pdb
+
 import numpy as np
 import pandas as pd
 from scipy.special import softmax
-import pickle as pkl
 
 from .augment_selecter import AugmentationSelector 
 
 class HighLossSampler(AugmentationSelector):
+    """Samples losses with a higher loss. 
+    """
 
-    def __init__(self, likelihoods_path, initial_generation_frame, num_gold_test_examples, lengths=None): # TODO: add `lengths` implementation later. 
+    def __init__(self, likelihoods_path, initial_generation_frame, \
+                 num_gold_test_examples, \
+                 use_softmax_normalizer, lengths, r: float,
+                 use_high_loss: bool): # TODO: add `lengths` implementation later. 
         AugmentationSelector.__init__(self, initial_generation_frame, num_gold_test_examples)
         # NOTE
         ## the indices in the example likelihoods correspond correspond to line numbers 
         ## in the test file that was used for producing the generations
         self.example_likelihoods = self._load_example_likelihoods(likelihoods_path)
         self.lengths = lengths 
+        self.use_softmax_normalizer = use_softmax_normalizer
+        print(f"Length normalization factor r is: {r}")
+        self.normalization_vector = lengths.pow(r-1.0)
+        self.use_high_loss = use_high_loss
+        # self.log_transform = log_transform
     
     def _load_example_likelihoods(self, likelihoods_path):
         with open(likelihoods_path, 'rb') as likelihoods_pkl:
@@ -22,13 +34,22 @@ class HighLossSampler(AugmentationSelector):
 
     # NOTE: make sure you use the likelihoods of the sample rather than 
         # 
-    def get_best_points(self, num_points): 
-        # TODO: we really need to test this. are these indeed the datapoints with the highest loss?
-            # TODO: a basic test is to check that the subset indices are all > 99. 
-            # TODO: a possible problem is that the likelihoods are log likelihoods. We want *negative* log likelihoods.
+    def get_best_points(self, num_points: int) -> pd.DataFrame: 
         indices, log_likelihoods = zip(*self.example_likelihoods)
-        indices_series = pd.Series(indices) 
+        indices_df = pd.DataFrame({
+                'indices': indices
+            }) 
         negative_log_likelihoods = -np.array(log_likelihoods)
-        probs = softmax(negative_log_likelihoods)
-        subset_indices = indices_series.sample(n=num_points, weights=probs).values
-        return self.get_augmentation_frame(subset_indices)
+        # assert all(x > 0 for x in scores)
+        # if self.use_softmax_normalizer:
+        #     weights = softmax(scores)
+        # else:
+        #     weights = scores
+        # indices_df['weight'] = weights
+        # subset_indices = indices_df.sample(n=num_points, weights='weight')['indices'].values
+        # return self.get_augmentation_frame(subset_indices)
+        subset_indices = (negative_log_likelihoods).argsort() 
+        if self.use_high_loss:
+            return self.get_augmentation_frame(np.array(indices)[subset_indices[-num_points:]])
+        else:
+            return self.get_augmentation_frame(np.array(indices)[subset_indices[:num_points]])
