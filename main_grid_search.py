@@ -4,7 +4,7 @@ from enum import Enum
 from itertools import product
 from packages.utils.util_functions import get_model_augment_path
 from packages.utils.constants import LANGUAGES
-import os 
+import os
 
 # TODO: delete later; in util_functions
 def generate_hyperparams(hyperparam_dict):
@@ -48,14 +48,17 @@ def build_argument_list(hparam_comb):
         elif hparam == 'use_loss':
             if hparam_comb['use_loss']:
                 argument_list.append('--use_loss')
+        elif hparam == 'rand_seed':
+            continue
         else:
-            raise Exception("Unrecognized hyperparameter hparam")
+            raise Exception(f"Unrecognized hyperparameter {hparam}")
     return argument_list
 
-def grid_search_random(language):
+def grid_search_random(language: str, rand_seed: int):
     hyperparams = {
         "num_aug": [128, 256, 512, 1024, 2048],
-        "train_medium": [True, False]
+        "train_medium": [False], 
+        "rand_seed": [rand_seed]
     }
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'random'):
@@ -63,44 +66,39 @@ def grid_search_random(language):
         else:
             argument_list = build_argument_list(hparam_comb)
             print(f"Running random pipeline with argument list {argument_list}")
-            result = subprocess.run(["python", "main_transformer.py", language, "random"] + argument_list + ['--run_random_sampling_pipeline'])
+            result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "random"] + argument_list + ['--run_random_sampling_pipeline'])
             print(result)
             if not result.returncode == 0:
                 raise Exception("Tried running the random sampling pipeline but some step failed.")
             
-def grid_search_initial(language):
+def grid_search_initial(language: str, rand_seed: int):
     hyperparams = {
-        "train_medium": [True, False],
-        "add_copies": [True]
+        "train_medium": [False], 
+        "rand_seed": [rand_seed]
     }
     def _build_initial_hyperparams(comb):
         argument_list = ['0'] # 0 since we don't use any augmentation
         if comb["train_medium"]:
             argument_list.append("--train_medium")
-        
-        if comb["add_copies"]:
-            argument_list.append("--add_copies")
         return argument_list
-
 
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'initial'):
             continue
         argument_list = _build_initial_hyperparams(hparam_comb)
         print(f"Running initial pipeline with argument list: {argument_list}")
-        result = subprocess.run(["python", "main_transformer.py", language, "initial"] + argument_list + ['--run_initial_pipeline'])
+        result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "initial"] + argument_list + ['--run_initial_pipeline'])
         print(result)
         if not result.returncode == 0:
             raise Exception("Tried running the random sampling pipeline but some step failed.")
 
-def grid_search_uncertainty(language):
+def grid_search_uncertainty(language, rand_seed: int):
     # TODO: each of these needs functions to turn them into options
     hyperparams = {
-        "r": [1.0], 
-        "use_softmax_normalizer": [False], 
-        "train_medium": [True, False], 
+        "train_medium": [False],
         "num_aug": [128, 256, 512, 1024, 2048],
-        "use_high_loss": [True, False]
+        "use_high_loss": [True, False], 
+        "rand_seed": [rand_seed]
     }
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'uncertainty_sample'):
@@ -108,18 +106,19 @@ def grid_search_uncertainty(language):
         else:
             argument_list = build_argument_list(hparam_comb)
             print(f"Running uncertainty pipeline with argument list {argument_list} for {language}")
-            result = subprocess.run(["python", "main_transformer.py", language, \
+            result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), \
                 "uncertainty_sample"] + argument_list + ['--run_uncertainty_sampling_pipeline'])
             print(result)
             if not result.returncode == 0:
                 raise Exception("Tried running the pipeline but some step failed")
 
-def grid_search_uat(language: str):
+def grid_search_uat(language: str, rand_seed: int):
     hyperparams = {
-        "train_medium": [True, False], 
+        "train_medium": [False], 
         "num_aug": [128, 256, 512, 1024, 2048],
         "use_empirical": [True, False],
-        "use_loss": [True, False]
+        "use_loss": [True, False], 
+        "rand_seed": [rand_seed]
     }
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'uat'):
@@ -127,7 +126,7 @@ def grid_search_uat(language: str):
         else:
             argument_list = build_argument_list(hparam_comb)
             print(f"Running uat pipeline with argument list {argument_list} for {language}")
-            result = subprocess.run(["python", "main_transformer.py", language, \
+            result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), \
                 "uat"] + argument_list + ['--run_uat_pipeline'], check=True)
             print(result)
             if not result.returncode == 0:
@@ -137,16 +136,17 @@ def main(args):
     for iter_language in LANGUAGES:
     # for iter_language in ['bengali']:
         if args.train_initial:
-            grid_search_initial(iter_language)
+            grid_search_initial(iter_language, args.rand_seed)
         elif args.train_uncertainty:
-            grid_search_uncertainty(iter_language)
+            grid_search_uncertainty(iter_language, args.rand_seed)
         elif args.train_uat:
-            grid_search_uat(iter_language)
+            grid_search_uat(iter_language, args.rand_seed )
         elif args.train_random:
-            grid_search_random(iter_language)
+            grid_search_random(iter_language, args.rand_seed)
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("rand_seed", type=int)
 parser.add_argument("--train_initial", action='store_true')
 parser.add_argument("--train_uncertainty", action='store_true')
 parser.add_argument("--train_uat", action='store_true')

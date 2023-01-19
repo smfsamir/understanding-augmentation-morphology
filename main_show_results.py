@@ -1,3 +1,4 @@
+from typing import TextIO
 import re
 import sys
 import pdb
@@ -10,8 +11,8 @@ import pandas as pd
 from packages.utils.constants import SCRATCH_PATH, LANGUAGES
 from packages.utils.util_functions import load_sigm_file, construct_cg_test_set
 
-def show_results(language):
-    prefix_dir = f"{SCRATCH_PATH}/{language}"
+def show_results(language, seed):
+    prefix_dir = f"{SCRATCH_PATH}/{language}_seed={seed}"
     dirs = os.listdir(prefix_dir)
     methods = []
     results = []
@@ -38,10 +39,10 @@ def show_results(language):
     # assert len(frame) >= 52, language
     return frame 
 
-def obtain_predictions_interactive(predictions_f):
+def obtain_predictions_interactive(predictions_f: TextIO):
     cur_line = predictions_f.readline()
     predictions = []
-    while not cur_line == '':
+    while not cur_line.startswith('Generate'):
         predictions_f.readline() # skip generation time
         prediction_line = predictions_f.readline().strip()
         prediction = prediction_line.split('\t')[2]
@@ -52,9 +53,8 @@ def obtain_predictions_interactive(predictions_f):
         cur_line = predictions_f.readline() # start of new block
     return predictions
 
-# TODO: complete this.
-def show_results_compositional(language):
-    prefix_dir = f"{SCRATCH_PATH}/{language}"
+def show_results_compositional(language: str, seed: int):
+    prefix_dir = f"{SCRATCH_PATH}/{language}_seed={seed}"
     dirs = os.listdir(prefix_dir)
     methods = []
     results = []
@@ -108,10 +108,12 @@ def show_results_compositional(language):
 
 
 def main(args):
+    seed = args.rand_seed
+
     if args.show_results:
         all_frames = []
         for language in LANGUAGES:
-            frame = show_results(language)
+            frame = show_results(language, seed)
             frame['language'] = [language] * len(frame)
             pd.set_option('display.max_colwidth', None)
             all_frames.append(frame)
@@ -120,8 +122,8 @@ def main(args):
         all_results_frame.to_csv(f"{SCRATCH_PATH}/all_languages_results_{cur_date}.csv")
     elif args.show_results_compositional:
         all_frames = []
-        for language in ['bengali', 'finnish', 'turkish']:
-            frame = show_results_compositional(language)
+        for language in LANGUAGES:
+            frame = show_results_compositional(language, seed)
             frame['language'] = [language] * len(frame)
             all_frames.append(frame)
         all_results_frame = pd.concat(all_frames)
@@ -130,6 +132,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument("rand_seed", action='store_true')
     parser.add_argument("--show_results", action='store_true')
     parser.add_argument("--show_results_compositional", action='store_true')
     main(parser.parse_args())

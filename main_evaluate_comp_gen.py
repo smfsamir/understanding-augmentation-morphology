@@ -1,3 +1,4 @@
+import argparse
 import click
 import os 
 import subprocess
@@ -8,11 +9,9 @@ import tqdm
 from packages.utils.constants import SIGM_DATA_PATH, SCRATCH_PATH, LANGUAGES
 from packages.utils.util_functions import load_sigm_file, get_model_augment_path, tokenize_row_tgt, tokenize_row_src, construct_cg_test_set
 
-# TODO: need to write this -- whitespace tokenized -- to a new file.
-# @click.command()
 def write_cg_test_frame(src_path, tgt_path, cg_test_frame: pd.DataFrame):
     if len(cg_test_frame) > 1000: # arbitrary.
-        cg_test_frame = cg_test_frame.sample(n=1000, replace=False)
+        cg_test_frame = cg_test_frame.sample(n=1000, replace=False, random_state=0)
     with open(src_path, 'w') as cg_frame_f:
         cg_test_frame[['src', 'tag']].apply(lambda row: cg_frame_f.write(f"{tokenize_row_src(row)}\n"), axis=1)
     with open(tgt_path, 'w') as cg_frame_f:
@@ -48,22 +47,33 @@ def evaluate_on_cg_test_set(language):
             print(f"Skipping because it appears that {stdout} has already been generated")
             continue
 
-        stdin = open(stdin)
         stdout = open(stdout, 'w')
-        subprocess.run(["fairseq-interactive", "--path", model_name, model_preproc_dir, 
-                        "--source-lang", "src", "--target-lang", "tgt", # probably for how to encode and decode...
-                        "--tokenizer", "space", "--buffer-size", "100"],
-                        stdin=stdin, stdout=stdout, check=True) 
+        # subprocess.run(["fairseq-interactive", "--path", model_name, model_preproc_dir, 
+        #                 "--source-lang", "src", "--target-lang", "tgt", # probably for how to encode and decode...
+        #                 "--tokenizer", "space", "--buffer-size", "100"],
+        #                 stdin=stdin, stdout=stdout, check=True) 
+
+        #the required batch size multiple assumes that the number of sentences 
+        # to be generated is a multiple of 4
+        subprocess.run(["fairseq-generate", model_preproc_dir, "--path", model_name, 
+                        "--batch-size", "128", "--beam", "5", "--required-batch-size-multiple", "4"], 
+                        stdout=stdout, check=True)
         print(f"Completed {dirname}")
 
-def write_test_frames():
-    for language_quantity in tqdm.tqdm(product(LANGUAGES, ['low', 'medium'])): 
+def write_test_frames(seed):
+    for language_quantity in tqdm.tqdm(product(LANGUAGES, [ 'medium'])): 
         language = language_quantity[0]
         quantity = language_quantity[1]
         test_frame = construct_cg_test_set(language, quantity)
-        write_cg_test_frame(f"{SCRATCH_PATH}/{language}/cg_test_frame_{quantity}_excluded_2.txt", \
-                            f"{SCRATCH_PATH}/{language}/cg_test_frame_{quantity}_excluded_2_tgt.txt", test_frame)
+        write_cg_test_frame(f"{SCRATCH_PATH}/{language}_seed={seed}/cg_test_frame_{quantity}_excluded_2.txt", \
+                            f"{SCRATCH_PATH}/{language}_seed={seed}/cg_test_frame_{quantity}_excluded_2_tgt.txt", test_frame)
 
-# write_test_frames()
-for language in LANGUAGES:
-    evaluate_on_cg_test_set(language)
+def main(args):
+    seed = args.rand_seed
+    write_test_frames(seed)
+    for language in LANGUAGES:
+        evaluate_on_cg_test_set(language)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("rand_seed", type=int)
+main(parser.parse_args())
