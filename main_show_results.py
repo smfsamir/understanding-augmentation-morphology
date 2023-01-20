@@ -42,7 +42,7 @@ def show_results(language, seed):
 def obtain_predictions_interactive(predictions_f: TextIO):
     cur_line = predictions_f.readline()
     predictions = []
-    while not cur_line.startswith('Generate'):
+    while not cur_line == '':
         predictions_f.readline() # skip generation time
         prediction_line = predictions_f.readline().strip()
         prediction = prediction_line.split('\t')[2]
@@ -132,7 +132,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("rand_seed", action='store_true')
+    parser.add_argument("rand_seed", type=int)
     parser.add_argument("--show_results", action='store_true')
     parser.add_argument("--show_results_compositional", action='store_true')
     main(parser.parse_args())

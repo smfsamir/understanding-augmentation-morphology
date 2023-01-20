@@ -36,16 +36,15 @@ def evaluate_on_cg_test_set(language, seed):
                     break
         stdin = f"{SCRATCH_PATH}/{language}_seed={seed}/cg_test_frame_low_excluded_2.txt"
         stdout = f"{SCRATCH_PATH}/{language}_seed={seed}/{dirname}/cg_low_excluded_2.txt"
-        
         if os.path.exists(stdout):
             print(f"Skipping because it appears that {stdout} has already been generated")
             continue
-
+        
         stdout = open(stdout, 'w')
-        stdin = open(stdin, 'w')
+        stdin = open(stdin, 'r')
         subprocess.run(["fairseq-interactive", "--path", model_name, model_preproc_dir, 
                         "--source-lang", "src", "--target-lang", "tgt", # probably for how to encode and decode...
-                        "--tokenizer", "space", "--buffer-size", "100"],
+                        "--tokenizer", "space", "--buffer-size", "500"],
                         stdin=stdin, stdout=stdout, check=True) 
 
         #the required batch size multiple assumes that the number of sentences 
@@ -56,7 +55,7 @@ def evaluate_on_cg_test_set(language, seed):
         print(f"Completed {dirname}")
 
 def write_test_frames(seed):
-    for language_quantity in tqdm.tqdm(product(LANGUAGES, ['medium'])):
+    for language_quantity in tqdm.tqdm(product(LANGUAGES, ['low'])):
         language = language_quantity[0]
         quantity = language_quantity[1]
         test_frame = construct_cg_test_set(language, quantity)
