@@ -12,8 +12,7 @@ class HighLossSampler(AugmentationSelector):
     """
 
     def __init__(self, likelihoods_path, initial_generation_frame, \
-                 num_gold_test_examples, \
-                 use_softmax_normalizer, lengths, r: float,
+                 num_gold_test_examples, lengths, \
                  use_high_loss: bool): # TODO: add `lengths` implementation later. 
         AugmentationSelector.__init__(self, initial_generation_frame, num_gold_test_examples)
         # NOTE
@@ -21,9 +20,6 @@ class HighLossSampler(AugmentationSelector):
         ## in the test file that was used for producing the generations
         self.example_likelihoods = self._load_example_likelihoods(likelihoods_path)
         self.lengths = lengths 
-        self.use_softmax_normalizer = use_softmax_normalizer
-        print(f"Length normalization factor r is: {r}")
-        self.normalization_vector = lengths.pow(r-1.0)
         self.use_high_loss = use_high_loss
         # self.log_transform = log_transform
     

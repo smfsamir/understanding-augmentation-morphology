@@ -7,4 +7,4 @@ HALL_DATA_PATH = "/home/fsamir8/projects/rrg-msilfver/fsamir8/mixture-of-augment
 HALL_EXPANDED_DATA_PATH = "/home/fsamir8/projects/rrg-msilfver/fsamir8/mixture-of-augmentations/data/spreadsheets/augmentations_expanded" 
 LANGUAGES=("bengali", "turkish", "finnish", "georgian", "arabic", "navajo", "spanish")
 ALGORITHMS = ('random', 'uncertainty_sample', 'initial', 'diversity_sample')
-INITIAL_MODEL_PARAMS=('train_medium', )
+INITIAL_MODEL_PARAMS=('train_medium', 'rand_seed')

@@ -23,20 +23,24 @@ def get_model_augment_path(language, augmentation_type, **kwargs):
         language (str): Language the model is being trained for.
         augmentation_type (str): Augmentation type for the model. 
     """
-    kwarg_strs= [f"{k}={v}" for k, v in kwargs.items()]
+    kwarg_strs= [f"{k}={v}" for k, v in kwargs.items() if k != 'rand_seed']
     kwarg_strs.sort()
     kwarg_str = "_".join(kwarg_strs)
-    path = f"{SCRATCH_PATH}/{language}/{augmentation_type}_{kwarg_str}"
+    assert 'rand_seed' in kwargs, f"rand_seed kwarg not in kwargs for {language} with augmentation type {augmentation_type}"
+    rand_seed = kwargs['rand_seed']
+    path = f"{SCRATCH_PATH}/{language}_seed={rand_seed}/{augmentation_type}_{kwarg_str}"
     return path 
+
+def get_initial_model_path(language, **kwargs):
+    """Gets the initial model path.
+    """
+    init_kwargs = {k: kwargs[k] for k in INITIAL_MODEL_PARAMS}
+    initial_augment_path = get_model_augment_path(language, 'initial', **init_kwargs)
+    return initial_augment_path
 
 def get_number_test_examples(language, **kwargs):
     test_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-test", header=None, names=["src", "tgt" ,"tag"], sep='\t')
     return len(test_frame)
-
-def get_initial_model_path(language, **kwargs):
-    init_kwargs = {k: kwargs[k] for k in INITIAL_MODEL_PARAMS}
-    initial_augment_path = get_model_augment_path(language, 'initial', **init_kwargs)
-    return initial_augment_path
 
 def generate_hyperparams(hyperparam_dict):
     keys = hyperparam_dict.keys()

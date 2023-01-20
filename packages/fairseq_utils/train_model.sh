@@ -3,6 +3,7 @@
 SCRATCHDIR=$1
 LANG=$2
 ALGORITHM=$3
+SEED=$4
 
 cd "$SCRATCHDIR" || exit
 PREPROCESS="${LANG}_fairseq_bin"
@@ -14,7 +15,7 @@ fairseq-train $PREPROCESS \
     --source-lang src \
     --target-lang tgt \
     --save-dir $SAVEPREF \
-    --seed 1 \
+    --seed $SEED \
     --arch transformer \
     --encoder-layers 4 \
     --decoder-layers 4 \

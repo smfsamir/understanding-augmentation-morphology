@@ -29,11 +29,9 @@ def get_subset_selecter(language: str, augment_strategy: str, scratch_path_initi
     if augment_strategy == "uncertainty_sample":
         # TODO: construct the likelihood path. assert that it exists
         likelihood_pkl_path = f"{scratch_path_initial}/{language}_log_likelihoods.pickle"
-        use_softmax_normalizer = kwargs['use_softmax_normalizer']
-        r = kwargs['r']
         use_high_loss = kwargs['use_high_loss']
         assert os.path.exists(likelihood_pkl_path), f"Couldn't find likelihood file at {likelihood_pkl_path}"
-        return HighLossSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples,  use_softmax_normalizer, lengths, r, use_high_loss)
+        return HighLossSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples,  lengths, use_high_loss)
     elif augment_strategy == "random":
         return RandomSampler(initial_test_frame, num_gold_test_examples)
     elif augment_strategy == "uat":
