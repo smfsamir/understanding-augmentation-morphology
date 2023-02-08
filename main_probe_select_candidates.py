@@ -36,7 +36,6 @@ def inspect_augmentation_candidates(language: str, augmentation_type: str, \
     subset_augmentation_frame = subset_sampler.get_best_points(hyperparams['num_aug'])
     subset_augmentation_frame = subset_augmentation_frame.reset_index()
     subset_augmentation_frame = subset_augmentation_frame.merge(likelihood_frame, left_on='index', right_index=True)
-    print(subset_augmentation_frame['tgt'].value_counts())
     return subset_augmentation_frame
 
 def visualize_uncertainty(language):
@@ -88,8 +87,8 @@ def main():
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
             uat_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
             # there is a column called 'nll'. Print the average of that for the random_frame and the uat_frame. Make sure to also print the number of examples ('num_aug')
-            print(f"Random: {random_frame['nll'].mean()} ({len(random_frame)})")
-            print(f"UAT: {uat_frame['nll'].mean()} ({len(uat_frame)})")
+            print(f"Random: {random_frame['nll'].mean()} ({len(random_frame)} examples)")
+            print(f"UAT: {uat_frame['nll'].mean()} ({len(uat_frame)} examples)")
 
 
             # random_frame['strategy'] = ['random'] * len(random_frame)
