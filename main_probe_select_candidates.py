@@ -77,17 +77,15 @@ def probe_uniform_abstract_template(language):
 
 def main():
     hyperparams = {
-        "num_aug": [1024],
-        "train_medium": [True], 
-        "use_high_loss": [True]
+        "num_aug": [128],
+        "train_medium": [False], 
+        "use_empirical": [False], 
+        "use_loss": [True]
     }
     for language in LANGUAGES:
         for hparam_comb in generate_hyperparams(hyperparams):
-            hparam_comb['r'] = 1
-            hparam_comb['use_softmax_normalizer'] = False
-            hparam_comb['use_high_loss'] = False 
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
-            uncertainty_frame = inspect_augmentation_candidates(language, 'uncertainty_sample', hparam_comb)
+            uncertainty_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
             print(random_frame['tag'].value_counts())
             print(uncertainty_frame['tag'].value_counts())
 
@@ -99,6 +97,7 @@ def main():
             # print(hparam_comb)
             # print(f"The average log uncertainty for random is {random_frame['nll'].apply(np.log).mean()} while it is {uncertainty_frame['nll'].apply(np.log).mean()} for uncertainty")
 
+main()
 # visualize_uncertainty('bengali')    
 # main()
-probe_uniform_abstract_template('bengali')
+# probe_uniform_abstract_template('bengali')
