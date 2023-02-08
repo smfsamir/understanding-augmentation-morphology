@@ -77,7 +77,7 @@ def probe_uniform_abstract_template(language):
 
 def main():
     hyperparams = {
-        "num_aug": [128],
+        "num_aug": [128, 256, 512, 1024, 2048],
         "train_medium": [False], 
         "use_empirical": [False], 
         "use_loss": [True], 
@@ -86,9 +86,11 @@ def main():
     for language in ['bengali']:
         for hparam_comb in generate_hyperparams(hyperparams):
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
-            uncertainty_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
-            print(random_frame['tag'].value_counts())
-            print(uncertainty_frame['tag'].value_counts())
+            uat_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
+            # there is a column called 'nll'. Print the average of that for the random_frame and the uat_frame. Make sure to also print the number of examples ('num_aug')
+            print(f"Random: {random_frame['nll'].mean()} ({len(random_frame)})")
+            print(f"UAT: {uat_frame['nll'].mean()} ({len(uat_frame)})")
+
 
             # random_frame['strategy'] = ['random'] * len(random_frame)
             # uncertainty_frame['strategy'] = ['uncertainty_sample'] * len(uncertainty_frame)
