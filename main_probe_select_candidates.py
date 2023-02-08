@@ -80,9 +80,10 @@ def main():
         "num_aug": [128],
         "train_medium": [False], 
         "use_empirical": [False], 
-        "use_loss": [True]
+        "use_loss": [True], 
+        "rand_seed": [0]
     }
-    for language in LANGUAGES:
+    for language in ['bengali']:
         for hparam_comb in generate_hyperparams(hyperparams):
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
             uncertainty_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
