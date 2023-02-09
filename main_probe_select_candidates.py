@@ -82,7 +82,8 @@ def main():
         "use_loss": [True], 
         "rand_seed": [0]
     }
-    for language in ['bengali']:
+    for language in LANGUAGES[:-2]:
+        print(f"Language: {language}")
         for hparam_comb in generate_hyperparams(hyperparams):
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
             uat_frame = inspect_augmentation_candidates(language, 'uat', hparam_comb)
@@ -98,7 +99,6 @@ def main():
             # visualize_nll_comparison(pd.concat([random_frame, uncertainty_frame]).reset_index(), all_augment_nll_frame, f"{language}")
             # print(hparam_comb)
             # print(f"The average log uncertainty for random is {random_frame['nll'].apply(np.log).mean()} while it is {uncertainty_frame['nll'].apply(np.log).mean()} for uncertainty")
-
 main()
 # visualize_uncertainty('bengali')    
 # main()
