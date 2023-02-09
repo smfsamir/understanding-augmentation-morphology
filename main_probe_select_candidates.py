@@ -101,6 +101,7 @@ def visualize_aug_tag_distribution():
     # create a figure with len(LANGUAGES) rows and 1 column.
     # for each language, create a bar plot of the number of examples per tag.
     # save the figure to a file.
+    
     fig, axes = plt.subplots(len(LANGUAGES), 1, figsize=(10, 10)) 
 
     for language in LANGUAGES:
@@ -114,6 +115,8 @@ def visualize_aug_tag_distribution():
         ax = axes[LANGUAGES.index(language)]
         sns.barplot(x=tag_series.index, y=tag_series.values, ax=ax)
         ax.set_title(language)
+        # print the number of tags in the series.
+        print(f"{language}: {len(tag_series)}")
     plt.savefig("tag_distribution.png")
 
 
