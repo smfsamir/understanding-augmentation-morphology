@@ -6,11 +6,12 @@ import pickle as pkl
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame, get_augmentation_example_lengths
 from packages.utils.util_functions import get_number_test_examples, get_initial_model_path, generate_hyperparams
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter 
-from packages.utils.constants import LANGUAGES
+from packages.utils.constants import LANGUAGES, HALL_DATA_PATH
 from packages.visualizations.visualize import visualize_nll_comparison, visualize_nlls_all, visualize_uat_selection
 
 def load_augment_likelihoods(language: str, **kwargs) -> pd.DataFrame:
@@ -91,15 +92,19 @@ def main():
             print(f"Random: {random_frame['nll'].mean()} ({len(random_frame)} examples)")
             print(f"UAT: {uat_frame['nll'].mean()} ({len(uat_frame)} examples)")
 
+def visualize_aug_tag_distribution():
+    # iterate over all languages and load the augmentation frame. Then concatenate the the series of tags. Create another column called language to keep track of the language.
+    # Then create a bar plot of the number of examples per tag for each language.
 
-            # random_frame['strategy'] = ['random'] * len(random_frame)
-            # uncertainty_frame['strategy'] = ['uncertainty_sample'] * len(uncertainty_frame)
+    tag_frames = []
+    for language in LANGUAGES:
+        augmentation_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+        tag_frames.append(augmentation_frame['tag'].value_counts().rename(language))
+    tag_frame = pd.concat(tag_frames, axis=1)
+    pdb.set_trace()
 
-            # all_augment_nll_frame = load_augment_likelihoods(language, **hparam_comb)
-            # visualize_nll_comparison(pd.concat([random_frame, uncertainty_frame]).reset_index(), all_augment_nll_frame, f"{language}")
-            # print(hparam_comb)
-            # print(f"The average log uncertainty for random is {random_frame['nll'].apply(np.log).mean()} while it is {uncertainty_frame['nll'].apply(np.log).mean()} for uncertainty")
-main()
+visualize_aug_tag_distribution()
+# main()
 # visualize_uncertainty('bengali')    
 # main()
 # probe_uniform_abstract_template('bengali')
