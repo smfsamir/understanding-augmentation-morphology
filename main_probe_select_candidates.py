@@ -1,7 +1,9 @@
 import pdb
 import sys
 from typing import Dict
+import seaborn as sns
 import pickle as pkl
+from sklearn.preprocessing import LabelEncoder
 
 
 import numpy as np
@@ -96,12 +98,25 @@ def visualize_aug_tag_distribution():
     # iterate over all languages and load the augmentation frame. Then concatenate the the series of tags. Create another column called language to keep track of the language.
     # Then create a bar plot of the number of examples per tag for each language.
 
-    tag_frames = []
+    # create a figure with len(LANGUAGES) rows and 1 column.
+    # for each language, create a bar plot of the number of examples per tag.
+    # save the figure to a file.
+    fig, axes = plt.subplots(len(LANGUAGES), 1, figsize=(10, 10)) 
+
     for language in LANGUAGES:
         augmentation_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
-        tag_frames.append(augmentation_frame['tag'].value_counts().rename(language))
-    tag_frame = pd.concat(tag_frames, axis=1)
-    pdb.set_trace()
+        # use seaborn to create a bar plot of the number of examples per tag.
+        # use a label encoder to convert the tag to a number.
+        le = LabelEncoder()
+        augmentation_frame['tag'] = le.fit_transform(augmentation_frame['tag'])
+        tag_series = augmentation_frame['tag']
+        tag_series = tag_series.value_counts()
+        ax = axes[LANGUAGES.index(language)]
+        sns.barplot(x=tag_series.index, y=tag_series.values, ax=ax)
+        ax.set_title(language)
+    plt.savefig("tag_distribution.png")
+
+
 
 visualize_aug_tag_distribution()
 # main()
