@@ -86,7 +86,7 @@ def main():
         "rand_seed": [0]
     }
     languages, random_nlls, uat_nlls, num_augs = [], [], [], []
-    for language in LANGUAGES[:-2]:
+    for language in LANGUAGES:
         print(f"Language: {language}")
         for hparam_comb in generate_hyperparams(hyperparams):
             random_frame = inspect_augmentation_candidates(language, 'random', hparam_comb)
