@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame, get_augmentation_example_lengths
 from packages.utils.util_functions import get_number_test_examples, get_initial_model_path, generate_hyperparams
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter 
-from packages.utils.constants import LANGUAGES, HALL_DATA_PATH
+from packages.utils.constants import LANGUAGES, HALL_DATA_PATH, SCRATCH_PATH
 from packages.visualizations.visualize import visualize_nll_comparison, visualize_nlls_all, visualize_uat_selection
 
 def load_augment_likelihoods(language: str, **kwargs) -> pd.DataFrame:
@@ -85,6 +85,7 @@ def main():
         "use_loss": [True], 
         "rand_seed": [0]
     }
+    languages, random_nlls, uat_nlls, num_augs = [], [], [], []
     for language in LANGUAGES[:-2]:
         print(f"Language: {language}")
         for hparam_comb in generate_hyperparams(hyperparams):
@@ -93,6 +94,17 @@ def main():
             # there is a column called 'nll'. Print the average of that for the random_frame and the uat_frame. Make sure to also print the number of examples ('num_aug')
             print(f"Random: {random_frame['nll'].mean()} ({len(random_frame)} examples)")
             print(f"UAT: {uat_frame['nll'].mean()} ({len(uat_frame)} examples)")
+            languages.append(language)
+            random_nlls.append(random_frame['nll'].mean())
+            uat_nlls.append(uat_frame['nll'].mean())
+            num_augs.append(len(random_frame))
+    nll_frame = pd.DataFrame({
+        "language": languages,
+        "random": random_nlls,
+        "uat_use_empirical=False_use_loss=True": uat_nlls,
+        "num_aug": num_augs
+    })
+    nll_frame.to_csv(f"{SCRATCH_PATH}/nlls.csv", index=False)
 
 def visualize_aug_tag_distribution():
     # iterate over all languages and load the augmentation frame. Then concatenate the the series of tags. Create another column called language to keep track of the language.
@@ -101,9 +113,7 @@ def visualize_aug_tag_distribution():
     # create a figure with len(LANGUAGES) rows and 1 column.
     # for each language, create a bar plot of the number of examples per tag.
     # save the figure to a file.
-    
     fig, axes = plt.subplots(len(LANGUAGES), 1, figsize=(10, 10)) 
-
     for language in LANGUAGES:
         augmentation_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
         # use seaborn to create a bar plot of the number of examples per tag.
@@ -121,7 +131,7 @@ def visualize_aug_tag_distribution():
 
 
 
-visualize_aug_tag_distribution()
+main()
 # main()
 # visualize_uncertainty('bengali')    
 # main()
