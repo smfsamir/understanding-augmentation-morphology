@@ -35,7 +35,7 @@ def prep_preproc_fairseq_data_initial(language: str, augmentation_type: str, **k
     # TODO: would add the copies here.
     train_frame, validation_frame, test_frame = load_gold_train_validation_test(language, train_medium)
 
-    test_frame = get_initial_generation_frame(language)
+    test_frame = get_initial_generation_frame(language, kwargs['aug_pool_size'])
 
     _write_split(language, augmentation_type, train_frame, "train", **kwargs)
     _write_split(language, augmentation_type, validation_frame, "valid", **kwargs)
@@ -108,6 +108,7 @@ def extract_log_likelihoods(language, num_test_examples, **kwargs ):
         language (str) 
         num_test_examples (int, optional): Number of gold test examples. 
     """
+    aug_pool_size = kwargs['aug_pool_size']
     avg_log_likelihoods = []
     initial_model_path = get_model_augment_path(language, 'initial', **kwargs)
     with open(f"{initial_model_path}/{language}_results.txt", 'r') as predictions_f:
@@ -122,7 +123,7 @@ def extract_log_likelihoods(language, num_test_examples, **kwargs ):
             predictions_f.readline() # skip per token line
     with open(f"{initial_model_path}/{language}_log_likelihoods.pickle", "wb") as ll_handle: 
         pickle.dump(avg_log_likelihoods, ll_handle, protocol=pickle.HIGHEST_PROTOCOL)
-    assert len(avg_log_likelihoods) == 10000, f"There were {len(avg_log_likelihoods)} log likelihoods collected."
+    assert len(avg_log_likelihoods) == aug_pool_size , f"There were {len(avg_log_likelihoods)} log likelihoods collected but {aug_pool_size} were expected." 
 
 def get_initial_model_path(language, **kwargs):
     init_kwargs = {k: kwargs[k] for k in INITIAL_MODEL_PARAMS}
@@ -130,8 +131,9 @@ def get_initial_model_path(language, **kwargs):
     return initial_augment_path
 
 def prep_preproc_fairseq_data_augment(language, augmentation_type, **kwargs):
+    aug_pool_size = kwargs['aug_pool_size']
     train_frame, validation_frame, test_frame = load_gold_train_validation_test(language, kwargs['train_medium'])
-    initial_generation_frame = get_initial_generation_frame(language) # contains gold test + original 10,000 test examples.
+    initial_generation_frame = get_initial_generation_frame(language, aug_pool_size) # contains gold test + original 10,000 test examples.
     num_gold_test_examples = get_number_test_examples(language)
     augment_example_lengths = get_augmentation_example_lengths(initial_generation_frame, num_gold_test_examples)
     subset_sampler = get_subset_selecter(language, augmentation_type, get_initial_model_path(language, **kwargs), initial_generation_frame, num_gold_test_examples, augment_example_lengths, **kwargs)
@@ -143,10 +145,11 @@ def prep_preproc_fairseq_data_augment(language, augmentation_type, **kwargs):
     _write_split(language, augmentation_type, validation_frame, "valid", **kwargs)
     _write_split(language, augmentation_type, test_frame, "test", **kwargs)
 
-def run_initial_pipeline(language: str, train_medium: bool, rand_seed: int):
+def run_initial_pipeline(language: str, train_medium: bool, rand_seed: int, aug_pool_size: int):
     hparam_comb = {
         "train_medium": train_medium, 
-        "rand_seed": rand_seed
+        "rand_seed": rand_seed, 
+        "aug_pool_size": aug_pool_size
     }
     prep_preproc_fairseq_data_initial(language, 'initial', **hparam_comb)
     run_fairseq_binarizer(language, 'initial', **hparam_comb)
@@ -155,11 +158,12 @@ def run_initial_pipeline(language: str, train_medium: bool, rand_seed: int):
     report_accuracy(language, 'initial', get_number_test_examples(language), **hparam_comb)
     extract_log_likelihoods(language, get_number_test_examples(language), **hparam_comb)
 
-def run_random_sampling_pipeline(language, num_aug, train_medium, rand_seed): 
+def run_random_sampling_pipeline(language, num_aug, train_medium, rand_seed, aug_pool_size): 
     hparam_comb = {
         "num_aug": num_aug,
         "train_medium": train_medium, 
-        "rand_seed": rand_seed
+        "rand_seed": rand_seed, 
+        "aug_pool_size": aug_pool_size
     }
     prep_preproc_fairseq_data_augment(language, 'random', **hparam_comb)
     run_fairseq_binarizer(language, 'random', **hparam_comb)
@@ -169,12 +173,13 @@ def run_random_sampling_pipeline(language, num_aug, train_medium, rand_seed):
 
 def run_uncertainty_sampling_pipeline(language, num_aug, \
                                       use_high_loss, train_medium, \
-                                      rand_seed): 
+                                      rand_seed, aug_pool_size): 
     hparam_comb = {
         "num_aug": num_aug,
         "use_high_loss": use_high_loss,
         "train_medium": train_medium,
-        "rand_seed": rand_seed
+        "rand_seed": rand_seed,
+        "aug_pool_size": aug_pool_size 
     }
     prep_preproc_fairseq_data_augment(language, 'uncertainty_sample', **hparam_comb)
     run_fairseq_binarizer(language, 'uncertainty_sample', **hparam_comb)
@@ -183,13 +188,16 @@ def run_uncertainty_sampling_pipeline(language, num_aug, \
     report_accuracy(language, 'uncertainty_sample', get_number_test_examples(language), **hparam_comb)
 
 def run_uat_pipeline(language: str, num_aug: int, train_medium: bool, \
-                     use_empirical: bool, use_loss: bool, rand_seed: int):
+                     use_empirical: bool, use_loss: bool, rand_seed: int, 
+                     aug_pool_size: int):
+    # TODO: put in the number of augmented examples into the map.
     hparam_comb = {
         "num_aug": num_aug,
         "use_empirical": use_empirical,
         "train_medium": train_medium,
         "rand_seed": rand_seed,
-        "use_loss": use_loss
+        "use_loss": use_loss,
+        "aug_pool_size": aug_pool_size
     }
     algorithm = 'uat'
     prep_preproc_fairseq_data_augment(language, algorithm, **hparam_comb)
@@ -217,23 +225,24 @@ def main(args):
 
     # pipelines
     elif args.run_initial_pipeline:
-        run_initial_pipeline(args.language, args.train_medium, args.rand_seed)
+        run_initial_pipeline(args.language, args.train_medium, args.rand_seed, args.aug_pool_size)
     elif args.run_uncertainty_sampling_pipeline:
         run_uncertainty_sampling_pipeline(args.language, args.num_aug, \
-            args.use_high_loss, args.train_medium, args.rand_seed)
+            args.use_high_loss, args.train_medium, args.rand_seed, args.aug_pool_size)
     elif args.run_random_sampling_pipeline:
         run_random_sampling_pipeline(args.language, args.num_aug, \
-            args.train_medium, args.rand_seed)
+            args.train_medium, args.rand_seed, args.aug_pool_size)
     elif args.run_uat_pipeline:
         run_uat_pipeline(args.language, args.num_aug, args.train_medium, \
-            args.use_empirical, args.use_loss, args.rand_seed)
+            args.use_empirical, args.use_loss, args.rand_seed, args.aug_pool_size)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("language", type=str)
     parser.add_argument("rand_seed", type=int)
     parser.add_argument("augmentation_type", type=str) # when starting out, just put "initial".
-    parser.add_argument("num_aug", type=int) # when starting out, just put "initial".
+    parser.add_argument("num_aug", type=int) 
+    parser.add_argument("aug_pool_size", type=int) 
     parser.add_argument("--prep_preproc_fairseq_data_initial", action='store_true')
     parser.add_argument("--prep_preproc_fairseq_data_augment", action='store_true')
     parser.add_argument("--probe_initial_representations", action='store_true')

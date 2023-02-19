@@ -31,7 +31,7 @@ def load_augment_likelihoods(language: str, **kwargs) -> pd.DataFrame:
 def inspect_augmentation_candidates(language: str, augmentation_type: str, \
 									hyperparams: Dict) -> pd.DataFrame:
     likelihood_frame = load_augment_likelihoods(language, **hyperparams)
-    initial_generation_frame = get_initial_generation_frame(language) # contains gold test + original 10,000 test examples.
+    initial_generation_frame = get_initial_generation_frame(language, hyperparams['aug_pool_size']) # contains gold test + original 10,000 test examples.
     num_gold_test_examples = get_number_test_examples(language)
     augment_example_lengths = get_augmentation_example_lengths(initial_generation_frame, num_gold_test_examples)
     subset_sampler = get_subset_selecter(language, augmentation_type, get_initial_model_path(language, **hyperparams), initial_generation_frame, num_gold_test_examples, augment_example_lengths, **hyperparams)
@@ -46,7 +46,7 @@ def visualize_uncertainty(language):
     likelihood_frame = load_augment_likelihoods(language, **hyperparams) 
     visualize_nlls_all(likelihood_frame)
 
-def probe_uniform_abstract_template(language):
+def probe_uniform_abstract_template(language, aug_pool_size):
     def test_uat_selection(_likelihood_augmentation_frame, _subset_frame):
         for tag in _subset_frame['tag'].unique():
             subset_tag_frame = _subset_frame[_subset_frame['tag']==tag]
@@ -55,14 +55,15 @@ def probe_uniform_abstract_template(language):
             all_tag_likelihoods = sorted(all_tag_frame['nll'], reverse=True)
             for i in range(len(subset_tag_likelihoods)):
                 assert subset_tag_likelihoods[i] == all_tag_likelihoods[i] 
-        assert len(_likelihood_augmentation_frame) == 10000
+        assert len(_likelihood_augmentation_frame) == aug_pool_size
+        # TODO: this assertion will have to be changed if we vary the number of augmentations.
 
 
-    hyperparams = {'train_medium': True, 'use_empirical': False, 'num_aug': 2048}
+    hyperparams = {'train_medium': True, 'use_empirical': False, 'num_aug': 2048, 'aug_pool_size': aug_pool_size}
     
     num_gold_test_examples = get_number_test_examples(language)
     likelihood_frame = load_augment_likelihoods(language, **hyperparams)
-    initial_generation_frame = get_initial_generation_frame(language) # contains gold test + original 10,000 test examples.
+    initial_generation_frame = get_initial_generation_frame(language, aug_pool_size) # contains gold test + original 10,000 test examples.
     all_augmentation_frame = initial_generation_frame.loc[np.arange(num_gold_test_examples, len(initial_generation_frame))]
 
     augment_example_lengths = get_augmentation_example_lengths(initial_generation_frame, num_gold_test_examples)
@@ -83,7 +84,8 @@ def main():
         "train_medium": [False], 
         "use_empirical": [False], 
         "use_loss": [True], 
-        "rand_seed": [0]
+        "rand_seed": [0],
+        "aug_pool_size": [100000]
     }
     languages, random_nlls, uat_nlls, num_augs = [], [], [], []
     for language in LANGUAGES:

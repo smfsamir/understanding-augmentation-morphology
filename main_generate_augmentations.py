@@ -4,6 +4,7 @@ import sys
 
 from packages.utils.constants import LANGUAGES, SIGM_DATA_PATH, HALL_EXPANDED_DATA_PATH
 
+# TODO: adjust this file
 def generate_augmentations():
     if not os.path.exists(HALL_EXPANDED_DATA_PATH):
         os.mkdir(HALL_EXPANDED_DATA_PATH)
@@ -13,7 +14,7 @@ def generate_augmentations():
 
             result = subprocess.run(["python", "augment.py",   
                 SIGM_DATA_PATH, fname, HALL_EXPANDED_DATA_PATH, # required arguments
-                "--examples", "10000" ])
+                "--examples", "100000"], check=True) # optional arguments (default values
             if result.returncode != 0:
                 print(f"Generating augmentations for fname {fname} failed")
                 sys.exit(1)

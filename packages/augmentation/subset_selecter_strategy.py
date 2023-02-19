@@ -38,7 +38,8 @@ def get_subset_selecter(language: str, augment_strategy: str, scratch_path_initi
         likelihood_pkl_path = f"{scratch_path_initial}/{language}_log_likelihoods.pickle"
         use_empirical = kwargs['use_empirical']
         use_loss = kwargs['use_loss']
-        return UniformAbstractSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples, use_empirical, use_loss)
+        aug_pool_size = kwargs['aug_pool_size']
+        return UniformAbstractSampler(likelihood_pkl_path, initial_test_frame, num_gold_test_examples, use_empirical, use_loss, aug_pool_size)
     elif augment_strategy == "diversity_sample":
         embeddings_dict, item_id_dict, token_ids_dict, src_dict = _load_initial_representations_bundle(scratch_path_initial, language)
         k = kwargs['k']

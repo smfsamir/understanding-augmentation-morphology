@@ -28,7 +28,9 @@ def get_model_augment_path(language, augmentation_type, **kwargs):
     kwarg_str = "_".join(kwarg_strs)
     assert 'rand_seed' in kwargs, f"rand_seed kwarg not in kwargs for {language} with augmentation type {augmentation_type}"
     rand_seed = kwargs['rand_seed']
-    path = f"{SCRATCH_PATH}/{language}_seed={rand_seed}/{augmentation_type}_{kwarg_str}"
+    aug_pool_size = kwargs['aug_pool_size']
+    # TODO: update to put in the number of augmented examples after the first slash
+    path = f"{SCRATCH_PATH}/{language}_seed={rand_seed}_aug_pool_size={aug_pool_size}/{augmentation_type}_{kwarg_str}"
     return path 
 
 def get_initial_model_path(language, **kwargs):

@@ -4,16 +4,19 @@ import pandas as pd
 import pickle as pkl
 from .augment_selecter import AugmentationSelector 
 
+# TODO: check for 100,000 instead of 10,000. Or, make it a parameter.
 class UniformAbstractSampler(AugmentationSelector):
     """Sample abstract morphological templates.
     """
 
     def __init__(self, likelihoods_path, initial_generation_frame, \
-            num_gold_test_examples, use_empirical, use_loss): 
+            num_gold_test_examples, use_empirical, use_loss,
+            aug_pool_size=10000): 
         AugmentationSelector.__init__(self, initial_generation_frame, num_gold_test_examples)
         self.example_likelihoods = self._load_example_likelihoods(likelihoods_path)
         self.use_empirical = use_empirical
         self.use_loss = use_loss
+        self.aug_pool_size = aug_pool_size
     
     def _load_example_likelihoods(self, likelihoods_path):
         with open(likelihoods_path, 'rb') as likelihoods_pkl:
@@ -33,10 +36,10 @@ class UniformAbstractSampler(AugmentationSelector):
             "nll": negative_log_likelihoods
         }, index = indices)
         num_generation = len(self.generation_frame)
-        num_gold = num_generation - 10000
+        num_gold = num_generation - self.aug_pool_size
         augmentation_frame = self.generation_frame.loc[np.arange(num_gold, num_generation)]
         augmentation_frame = augmentation_frame.join(likelihood_frame)
-        assert len(augmentation_frame) == 10000
+        assert len(augmentation_frame) == self.aug_pool_size 
         if self.use_loss:
             augmentation_frame = augmentation_frame.sort_values(by='nll', ascending=False)
         else:
