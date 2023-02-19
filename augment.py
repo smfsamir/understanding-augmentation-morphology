@@ -6,6 +6,7 @@ import os, sys
 from random import random, choice
 import re
 from typing import List, Tuple
+from packages.utils.constants import HALL_DATA_PATH
 
 
 def read_data(filename):
@@ -193,6 +194,6 @@ t = [c for c in t if c]
 all_invariant_o_inds = [c for c in all_invariant_o_inds if c]
 all_source_indices = [c for c in all_source_indices if c]
 
-with codecs.open(os.path.join("data/spreadsheets",L2+"-hall" + f"-{str(N)}"), 'w', 'utf-8') as outp:
+with codecs.open(os.path.join(HALL_DATA_PATH,L2+"-hall" + f"-{str(N)}"), 'w', 'utf-8') as outp:
     for k in range(min(N, len(i))):
         outp.write(''.join(i[k]) + '\t' + ''.join(o[k]) + '\t' + ';'.join(t[k]) + '\t' + str(all_invariant_o_inds[k]) + '\t' + str(all_source_indices[k]) + '\n')

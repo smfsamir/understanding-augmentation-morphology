@@ -13,7 +13,7 @@ def generate_augmentations():
         if fname[-3:] == "low" and fname.split('-')[0] in LANGUAGES:
 
             result = subprocess.run(["python", "augment.py",   
-                SIGM_DATA_PATH, fname, HALL_EXPANDED_DATA_PATH, # required arguments
+                SIGM_DATA_PATH, fname, # required arguments
                 "--examples", "100000"], check=True) # optional arguments (default values
             if result.returncode != 0:
                 print(f"Generating augmentations for fname {fname} failed")
