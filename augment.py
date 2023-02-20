@@ -34,7 +34,7 @@ def find_good_range(a: str,b: str):
     Returns:
         [List[Tuple[int]]]: List of ranges (two-tuples). 
     """
-    mask = [(a[i]==b[i] and a[i] != u" ") for i in range(len(a))]
+    mask = [(a[i]==b[i] and a[i] != u" ") for i in range(len(a))] # mask of aligned characters.
     if sum(mask) == 0:
         # Some times the alignment is off-by-one
         b = ' ' + b
@@ -55,7 +55,7 @@ def find_good_range(a: str,b: str):
             prev = False
     if prev: # rest of the string 
         ranges.append((start,i+1)) 
-    ranges = [c for c in ranges if c[1]-c[0]>2] # must be strings of contiguous length or greater
+    ranges = [c for c in ranges if c[1]-c[0]>2] # must be contiguous strings greater than length 2
     return ranges
 
 def obtain_invariant_indices(output_aligned: str, good_indices_range: List[Tuple[int]]):
@@ -106,11 +106,7 @@ def augment(inputs, outputs, tags, characters):
     source_indices = []
 
     for k,item in enumerate(aligned):
-        #print(''.join(inputs[k]) + '\t' + ''.join(outputs[k]))
         i,o = item[0],item[1]
-        assert ' ' not in temp[k][1]
-        # if temp[k][0] == 'drip' or temp[k][0] == 'step':
-        #     pdb.set_trace()
         good_range = find_good_range(i,o)
         invariant_inds = obtain_invariant_indices(o, good_range)
         if good_range and invariant_inds: # NOTE: i added the comment
