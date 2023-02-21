@@ -188,7 +188,8 @@ i = [c for c in i if c]
 o = [c for c in o if c]
 t = [c for c in t if c]
 all_invariant_o_inds = [c for c in all_invariant_o_inds if c]
-all_source_indices = [c for c in all_source_indices if c]
+all_source_indices = [c for c in all_source_indices if type(c) == int]
+assert len(i) == len(o) == len(t) == len(all_invariant_o_inds) == len(all_source_indices)
 
 with codecs.open(os.path.join(HALL_DATA_PATH,L2+"-hall" + f"-{str(N)}"), 'w', 'utf-8') as outp:
     for k in range(min(N, len(i))):
