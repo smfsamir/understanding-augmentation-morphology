@@ -144,17 +144,17 @@ def compute_proportion_perturbed(language):
     def compute_proportion_perturbed_helper(row):
         counter = 0
         for i in row['candidate_inds']:
-            if row['tgt_x'][i] != row['tgt_y'][i]:
-                counter += 1
-        return counter / len(row['candidate_inds'])
+            try:
+                if row['tgt_x'][i] != row['tgt_y'][i]:
+                    counter += 1
+            except:
+                print(row['tgt_x'])
+                print(row['tgt_y'])
+                print(i)
+                pdb.set_trace()
     merged_frame['proportion_perturbed'] = merged_frame.apply(lambda row: compute_proportion_perturbed_helper(row), axis=1)
     # print the mean of the proportion_perturbed column.
-    print(merged_frame['proportion_perturbed'].mean())
+    return (merged_frame['proportion_perturbed'].mean())
 
-compute_proportion_perturbed('finnish')
-
-
-# main()
-# visualize_uncertainty('bengali')    
-# main()
-# probe_uniform_abstract_template('bengali')
+for language in LANGUAGES:
+    print(f"Proportion perturbed for {language}: {compute_proportion_perturbed(language)}")
