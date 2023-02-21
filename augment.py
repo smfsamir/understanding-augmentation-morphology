@@ -59,35 +59,17 @@ def find_good_range(a: str,b: str):
     return ranges
 
 def obtain_invariant_indices(output_aligned: str, good_indices_range: List[Tuple[int]]):
-    """Obtain the indices that haven't changed in the augmented string.
+    """Obtain the indices that haven't changed in the output string.
 
     Args:
         output_aligned (str): Output form, possibly with spaces (for alignment)
         good_indices_range (List[Tuple[int]]): Overlapping indices found after alignment
     """
-    gt_str = re.sub(r"\s", "", output_aligned)
-    i = 0
-    j = 0
-    # aligned_to_gt_inds = {} 
-    gt_to_aligned_inds = {} 
-    while i < len(gt_str):
-        while output_aligned[j] != gt_str[i]:
-            j += 1
-        gt_to_aligned_inds[i] = j
-        i += 1
-        j += 1
-    invariant_inds = []
-    varying_inds = []
-    for ind in sorted(gt_to_aligned_inds.keys()):
-        aligned_i = gt_to_aligned_inds[ind]
-        for s_e_range in good_indices_range:
-            if s_e_range[0] <= aligned_i and aligned_i < s_e_range[1]:
-                varying_inds.append(ind)
-    for i in range(len(gt_str)):
-        if i not in varying_inds:
-            invariant_inds.append(i)
-    assert not invariant_inds == [] or (len(good_indices_range)== 1 and good_indices_range[0][1] == len(gt_str)), f"{output_aligned},{good_indices_range}" 
-    return invariant_inds
+    invariant_indices = []
+    for r in good_indices_range:
+        invariant_indices.extend([i for i in range(r[0],r[1]) if output_aligned[i] != u" "])
+    return invariant_indices
+
 
 def augment(inputs, outputs, tags, characters):
     temp = [(''.join(inputs[i]), ''.join(outputs[i])) for i in range(len(outputs))]
