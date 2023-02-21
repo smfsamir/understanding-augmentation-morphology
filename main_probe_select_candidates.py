@@ -131,9 +131,25 @@ def visualize_aug_tag_distribution():
         print(f"{language}: {len(tag_series)}")
     plt.savefig("tag_distribution.png")
 
+def compute_proportion_perturbed(language):
+    augmentation_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall-100000", header=None, names=["src", "tgt" ,"tag", "candidate_inds", "source_key"], sep='\t')
+    gt_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+    # merge the two frames using the source_key column for the augmentation frame and the index for the gt_frame.
+    # then for each of the 100,000 examples, iterate over the candidate_inds column using a variable i. If the tgt[i] != gt_frame['tgt'][i], then increment a counter. Afterwards, normalize the counter by the number of candidate_inds. Add a column to the augmentation_frame called 'proportion_perturbed' and set it to the normalized counter.
+    merged_frame = augmentation_frame.merge(gt_frame, left_on='source_key', right_index=True)
+    def compute_proportion_perturbed_helper(row):
+        counter = 0
+        for i in row['candidate_inds']:
+            if row['tgt_x'][i] != row['tgt_y']:
+                counter += 1
+        return counter / len(row['candidate_inds'])
+    merged_frame['proportion_perturbed'] = merged_frame.apply(lambda row: compute_proportion_perturbed_helper(row), axis=1)
+    # print the mean of the proportion_perturbed column.
+    print(merged_frame['proportion_perturbed'].mean())
+
+compute_proportion_perturbed('bengali')
 
 
-main()
 # main()
 # visualize_uncertainty('bengali')    
 # main()
