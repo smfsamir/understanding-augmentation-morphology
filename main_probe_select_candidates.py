@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame, get_augmentation_example_lengths
 from packages.utils.util_functions import get_number_test_examples, get_initial_model_path, generate_hyperparams
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter 
-from packages.utils.constants import LANGUAGES, HALL_DATA_PATH, SCRATCH_PATH
+from packages.utils.constants import LANGUAGES, HALL_DATA_PATH, SCRATCH_PATH, SIGM_DATA_PATH
 from packages.visualizations.visualize import visualize_nll_comparison, visualize_nlls_all, visualize_uat_selection
 
 def load_augment_likelihoods(language: str, **kwargs) -> pd.DataFrame:
@@ -133,21 +133,25 @@ def visualize_aug_tag_distribution():
 
 def compute_proportion_perturbed(language):
     augmentation_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall-100000", header=None, names=["src", "tgt" ,"tag", "candidate_inds", "source_key"], sep='\t')
-    gt_frame = pd.read_csv(f"{HALL_DATA_PATH}/{language}-train-low-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+    gt_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-train-low", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+    # convert the candidate_inds column to a list of ints. Currently, it is a list of ints that has been converted to a string.
+    augmentation_frame['candidate_inds'] = augmentation_frame['candidate_inds'].apply(lambda x: [int(i) for i in x[1:-1].split(',')])
+
+
     # merge the two frames using the source_key column for the augmentation frame and the index for the gt_frame.
     # then for each of the 100,000 examples, iterate over the candidate_inds column using a variable i. If the tgt[i] != gt_frame['tgt'][i], then increment a counter. Afterwards, normalize the counter by the number of candidate_inds. Add a column to the augmentation_frame called 'proportion_perturbed' and set it to the normalized counter.
     merged_frame = augmentation_frame.merge(gt_frame, left_on='source_key', right_index=True)
     def compute_proportion_perturbed_helper(row):
         counter = 0
         for i in row['candidate_inds']:
-            if row['tgt_x'][i] != row['tgt_y']:
+            if row['tgt_x'][i] != row['tgt_y'][i]:
                 counter += 1
         return counter / len(row['candidate_inds'])
     merged_frame['proportion_perturbed'] = merged_frame.apply(lambda row: compute_proportion_perturbed_helper(row), axis=1)
     # print the mean of the proportion_perturbed column.
     print(merged_frame['proportion_perturbed'].mean())
 
-compute_proportion_perturbed('bengali')
+compute_proportion_perturbed('finnish')
 
 
 # main()
