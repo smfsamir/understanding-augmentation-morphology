@@ -6,7 +6,6 @@ import os
 import argparse
 import pandas as pd
 from collections import defaultdict
-import wandb
 
 from packages.utils.constants import SIGM_DATA_PATH, SCRATCH_PATH, FAIRSEQ_SCRIPTS_PATH, INITIAL_MODEL_PARAMS
 from packages.augmentation.select_highest_loss import HighLossSampler

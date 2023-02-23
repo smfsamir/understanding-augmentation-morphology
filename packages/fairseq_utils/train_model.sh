@@ -40,5 +40,4 @@ fairseq-train $PREPROCESS \
     --max-tokens 2000 \
     --max-update 6000 \
     --update-freq 1 \
-    --wandb-project subset-selection-augmentation \
     --log-format json --log-interval 20  
