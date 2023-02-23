@@ -80,18 +80,11 @@ def grid_search_initial(language: str, rand_seed: int, aug_pool_size: int):
         "rand_seed": [rand_seed], 
         "aug_pool_size": [aug_pool_size]
     }
-    def _build_initial_hyperparams(comb):
-        argument_list = ['0'] # 0 since we don't use any augmentation
-        if comb["train_medium"]:
-            argument_list.append("--train_medium")
-        return argument_list
 
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'initial'):
             continue
-        argument_list = _build_initial_hyperparams(hparam_comb)
-        print(f"Running initial pipeline with argument list: {argument_list}")
-        result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "initial", str(aug_pool_size)] + argument_list + ['--run_initial_pipeline'])
+        result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "initial", str(0), str(aug_pool_size)] + ['--run_initial_pipeline'], check=True)
         print(result)
         if not result.returncode == 0:
             raise Exception("Tried running the random sampling pipeline but some step failed.")
@@ -121,8 +114,8 @@ def grid_search_uat(language: str, rand_seed: int, aug_pool_size: int):
     hyperparams = {
         "train_medium": [False], 
         "num_aug": [128, 256, 512, 1024, 2048],
-        "use_empirical": [True, False],
-        "use_loss": [True, False], 
+        "use_empirical": [False],
+        "use_loss": [True], 
         "rand_seed": [rand_seed],
         "aug_pool_size": [aug_pool_size]
     }
