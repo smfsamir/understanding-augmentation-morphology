@@ -58,17 +58,17 @@ def find_good_range(a: str,b: str):
     ranges = [c for c in ranges if c[1]-c[0]>2] # must be contiguous strings greater than length 2
     return ranges
 
-def obtain_invariant_indices(output_aligned: str, good_indices_range: List[Tuple[int]]):
-    """Obtain the indices that haven't changed in the output string.
+def obtain_invariant_indices(input_aligned, output_aligned: str, good_indices_range: List[Tuple[int]]):
+    """Obtain the indices that can be perturbed by the augmentation process in the gold output.
 
     Args:
         output_aligned (str): Output form, possibly with spaces (for alignment)
-        good_indices_range (List[Tuple[int]]): Overlapping indices found after alignment
+        input_aligned (str): Input form, possibly with spaces (for alignment).
+        good_indices_range (List[Tuple[int]]): Indices of common substrings between source and target. The indices are for the aligned output string.
+            They are the indices that can be perturbed by the augmentation process.
     """
-    invariant_indices = []
-    for r in good_indices_range:
-        invariant_indices.extend([i for i in range(r[0],r[1]) if output_aligned[i] != u" "])
-    return invariant_indices
+            
+
 
 
 def augment(inputs, outputs, tags, characters):
@@ -90,9 +90,9 @@ def augment(inputs, outputs, tags, characters):
     for k,item in enumerate(aligned):
         i,o = item[0],item[1]
         good_range = find_good_range(i,o)
-        invariant_inds = obtain_invariant_indices(o, good_range)
-        if good_range and invariant_inds: # NOTE: i added the comment
+        if good_range: # NOTE: i added the comment
             new_i, new_o = list(i), list(o)
+            perturb_cand_inds = []
             for r in good_range:
                 s = r[0]
                 e = r[1]
@@ -100,16 +100,20 @@ def augment(inputs, outputs, tags, characters):
                 #     s += 1
                 #     e -= 1
                 for j in range(s,e):
+                    perturb_cand_inds.append(j)
                     if random() > 0.5: #arbitrary value
                         nc = choice(vocab)
                         new_i[j] = nc
                         new_o[j] = nc
             new_i1 = [c for l,c in enumerate(new_i) if (c.strip() or (new_i[l]==' ' and new_o[l] == ' '))]
             new_o1 = [c for l,c in enumerate(new_o) if (c.strip() or (new_i[l]==' ' and new_o[l] == ' '))]
+            new_inds = [l for l,c in enumerate(new_i) if (c.strip() or (new_i[l]==' ' and new_o[l] == ' '))]
+            perturb_cand_inds = [new_inds.index(x) for x in perturb_cand_inds]
+
             new_inputs.append(new_i1)
             new_outputs.append(new_o1)
             new_tags.append(tags[k])
-            invariant_target_inds.append(invariant_inds)
+            invariant_target_inds.append(perturb_cand_inds)
             # assert all([("".join(o.split(" "))[x]==new_o1[x]) for x in invariant_inds]), (f"{o} and {new_o1} and {invariant_inds}")
             # assert len(new_i1) == len(i)
             # assert len(new_o1) == len(o)
