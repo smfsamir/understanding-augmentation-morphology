@@ -12,6 +12,7 @@ mkdir -p "${SAVEPREF}"
 
 fairseq-train $PREPROCESS \
     --no-epoch-checkpoints \
+    --distributed-port 12345 \
     --source-lang src \
     --target-lang tgt \
     --save-dir $SAVEPREF \
