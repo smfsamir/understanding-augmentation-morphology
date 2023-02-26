@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --time=50:00:00
+#SBATCH --time=10:00:00
 #SBATCH --gpus-per-task=2
-#SBATCH --ntasks=5
+#SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=10G
 #SBATCH --account=rrg-mageed
 #SBATCH --output=/scratch/fsamir8/augmentation_subset_select/augmentation_everything.out
@@ -30,9 +30,9 @@
 #     done
 # }
 
-srun --ntasks=1 ./run_one_iteration.sh 0 &
-srun --ntasks=1 ./run_one_iteration.sh 1 &
-srun --ntasks=1 ./run_one_iteration.sh 2 &
-srun --ntasks=1 ./run_one_iteration.sh 3 &
-srun --ntasks=1 ./run_one_iteration.sh 4 &
+srun --ntasks=1  ./run_one_iteration.sh 0 &
+# srun --ntasks=1 ./run_one_iteration.sh 1 &
+# srun --ntasks=1 ./run_one_iteration.sh 2 &
+# srun --ntasks=1 ./run_one_iteration.sh 3 &
+# srun --ntasks=1 ./run_one_iteration.sh 4 &
 wait
