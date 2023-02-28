@@ -240,8 +240,8 @@ if __name__ == "__main__":
     parser.add_argument("language", type=str)
     parser.add_argument("rand_seed", type=int)
     parser.add_argument("augmentation_type", type=str) # when starting out, just put "initial".
-    parser.add_argument("num_aug", type=int) 
     parser.add_argument("aug_pool_size", type=int) 
+    parser.add_argument("num_aug", type=int) 
     parser.add_argument("--prep_preproc_fairseq_data_initial", action='store_true')
     parser.add_argument("--prep_preproc_fairseq_data_augment", action='store_true')
     parser.add_argument("--probe_initial_representations", action='store_true')
