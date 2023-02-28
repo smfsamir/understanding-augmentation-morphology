@@ -84,7 +84,7 @@ def grid_search_initial(language: str, rand_seed: int, aug_pool_size: int):
     for hparam_comb in generate_hyperparams(hyperparams):
         if hparam_comb_tested(hparam_comb, language, 'initial'):
             continue
-        result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "initial", str(0), str(aug_pool_size)] + ['--run_initial_pipeline'], check=True)
+        result = subprocess.run(["python", "main_transformer.py", language, str(rand_seed), "initial",  str(aug_pool_size), str(0),] + ['--run_initial_pipeline'], check=True)
         print(result)
         if not result.returncode == 0:
             raise Exception("Tried running the random sampling pipeline but some step failed.")
