@@ -18,7 +18,7 @@ python main_grid_search.py $SEED 100000 --train_random || { echo "training rando
 python main_grid_search.py $SEED 100000 --train_uat || { echo "training uat models failed" ; exit 1; }
 
 # ## 
-python main_evaluate_comp_gen.py $SEED || { echo "generating compositional generalization results failed" ; exit 1; }
+python main_evaluate_comp_gen.py $SEED 100000 || { echo "generating compositional generalization results failed" ; exit 1; }
 python main_show_results.py $SEED 100000 --show_results || { echo "Generating iid results failed" ; exit 1; }
 python main_show_results.py $SEED 100000 --show_results_compositional || { echo "Generating comp. gen results failed" ; exit 1; }
 
