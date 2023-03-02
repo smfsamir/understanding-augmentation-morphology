@@ -9,10 +9,12 @@ from datetime import datetime
 
 import pandas as pd
 from packages.utils.constants import SCRATCH_PATH, LANGUAGES
-from packages.utils.util_functions import load_sigm_file, construct_cg_test_set
+from packages.utils.util_functions import get_top_path
 
-def show_results(language, seed):
-    prefix_dir = f"{SCRATCH_PATH}/{language}_seed={seed}"
+
+
+def show_results(language, seed, aug_pool_size):
+    prefix_dir = get_top_path(language, seed, aug_pool_size)
     dirs = os.listdir(prefix_dir)
     methods = []
     results = []
@@ -53,8 +55,8 @@ def obtain_predictions_interactive(predictions_f: TextIO):
         cur_line = predictions_f.readline() # start of new block
     return predictions
 
-def show_results_compositional(language: str, seed: int):
-    prefix_dir = f"{SCRATCH_PATH}/{language}_seed={seed}"
+def show_results_compositional(language: str, seed: int, aug_pool_size: int):
+    prefix_dir = get_top_path(language, seed, aug_pool_size)
     dirs = os.listdir(prefix_dir)
     methods = []
     results = []
@@ -109,11 +111,12 @@ def show_results_compositional(language: str, seed: int):
 
 def main(args):
     seed = args.rand_seed
+    aug_pool_size = args.aug_pool_size
 
     if args.show_results:
         all_frames = []
         for language in LANGUAGES:
-            frame = show_results(language, seed)
+            frame = show_results(language, seed, aug_pool_size) 
             frame['language'] = [language] * len(frame)
             pd.set_option('display.max_colwidth', None)
             all_frames.append(frame)
@@ -123,7 +126,7 @@ def main(args):
     elif args.show_results_compositional:
         all_frames = []
         for language in LANGUAGES:
-            frame = show_results_compositional(language, seed)
+            frame = show_results_compositional(language, seed, aug_pool_size)
             frame['language'] = [language] * len(frame)
             all_frames.append(frame)
         all_results_frame = pd.concat(all_frames)
@@ -133,6 +136,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("rand_seed", type=int)
+    parser.add_argument("aug_pool_size", type=int)
     parser.add_argument("--show_results", action='store_true')
     parser.add_argument("--show_results_compositional", action='store_true')
     main(parser.parse_args())

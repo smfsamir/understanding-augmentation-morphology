@@ -33,6 +33,10 @@ def get_model_augment_path(language, augmentation_type, **kwargs):
     path = f"{SCRATCH_PATH}/{language}_seed={rand_seed}_aug_pool_size={aug_pool_size}/{augmentation_type}_{kwarg_str}"
     return path 
 
+# rename to get_top_path
+def get_top_path(language, seed, aug_pool_size):
+    return f"{SCRATCH_PATH}/{language}_seed={seed}_aug_pool_size={aug_pool_size}"
+
 def get_initial_model_path(language, **kwargs):
     """Gets the initial model path.
     """
