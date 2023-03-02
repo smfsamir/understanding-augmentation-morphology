@@ -24,5 +24,5 @@ python main_show_results.py $SEED 100000 --show_results_compositional || { echo 
 
 for lang in "${LANGUAGES[@]}"
 do
-    rm -rf "/home/fsamir8/scratch/augmentation_subset_select/${lang}_seed=${SEED}"
+    rm -rf "/home/fsamir8/scratch/augmentation_subset_select/${lang}_seed=${SEED}_aug_pool_size=100000" 
 done
