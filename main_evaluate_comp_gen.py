@@ -35,7 +35,7 @@ def evaluate_on_cg_test_set(language, seed, aug_pool_size):
                     model_name = f"{prefix}/{dirname}/{possible_model_dir}/checkpoint_best.pt"
                     break
         stdin = f"{get_top_path(language, seed, aug_pool_size)}/cg_test_frame_low_excluded_2.txt"
-        stdout = f"{get_top_path(language, seed, aug_pool_size)}/cg_low_excluded_2.txt"
+        stdout = f"{get_top_path(language, seed, aug_pool_size)}/{dirname}/cg_low_excluded_2.txt"
         if os.path.exists(stdout):
             print(f"Skipping because it appears that {stdout} has already been generated")
             continue
