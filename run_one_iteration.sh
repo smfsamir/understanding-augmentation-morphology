@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --time=50:00:00
 #SBATCH --gres=gpu:2
-#SBATCH --array=0-5
 #SBATCH --mem-per-cpu=10G
 #SBATCH --account=rrg-mageed
 #SBATCH --output=/scratch/fsamir8/augmentation_subset_select/augmentation_everything.out
@@ -10,7 +9,7 @@
 #SBATCH --mail-user=fsamir@mail.ubc.ca
 
 LANGUAGES=("bengali" "turkish" "finnish" "georgian" "arabic" "navajo" "spanish")
-SEED="$SLURM_ARRAY_TASK_ID"
+SEED=1
 echo "Running everything with seed $SEED"
 python main_grid_search.py $SEED 100000 --train_initial || { echo "training initial models failed" ; exit 1; }
 # python main_grid_search.py $SEED --train_uncertainty || { echo "training uncertainty models failed" ; exit 1; }
