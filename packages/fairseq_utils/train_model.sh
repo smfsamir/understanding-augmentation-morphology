@@ -11,6 +11,7 @@ SAVEPREF="${LANG}_${ALGORITHM}_model_checkpoints"
 mkdir -p "${SAVEPREF}"
 
 fairseq-train $PREPROCESS \
+    --distributed-port 12345 \
     --no-epoch-checkpoints \
     --source-lang src \
     --target-lang tgt \
