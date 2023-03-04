@@ -21,6 +21,6 @@ while sentinel_token in output_ids:
     sentinel_token -= 1
 
 output_ids_list.append(output_ids[start_token:])
-output_string = tokenizer.decode(output_ids_list)
+output_string = tokenizer.batch_decode(output_ids_list)
 print(output_string)
 
