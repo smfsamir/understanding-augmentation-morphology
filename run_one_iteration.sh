@@ -1,8 +1,7 @@
 #!/bin/bash
 #SBATCH --time=30:00:00
 #SBATCH --gres=gpu:2
-#SBATCH --mem-per-cpu=10G
-#SBATCH --ntasks=1
+#SBATCH --mem=10G
 #SBATCH --account=rrg-mageed
 #SBATCH --output=/scratch/fsamir8/augmentation_subset_select/augmentation_everything.out
 #SBATCH --error=/scratch/fsamir8/augmentation_subset_select/augmentation_everything.error
