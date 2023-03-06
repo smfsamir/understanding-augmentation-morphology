@@ -1,6 +1,8 @@
 #!/bin/bash
 #SBATCH --time=30:00:00
 #SBATCH --gres=gpu:2
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
 #SBATCH --mem=10G
 #SBATCH --account=rrg-mageed
 #SBATCH --output=/scratch/fsamir8/augmentation_subset_select/augmentation_everything.out
