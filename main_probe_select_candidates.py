@@ -79,7 +79,7 @@ def probe_uniform_abstract_template(language, aug_pool_size):
     columns = ['tag', 'strategy']
     visualize_uat_selection(pd.concat([random_subset_augmentation_frame[columns], subset_augmentation_frame[columns]]), hyperparams['use_empirical'])
 
-def main():
+def inspect_nlls():
     hyperparams = {
         "num_aug": [128, 256, 512, 1024, 2048],
         "train_medium": [False], 
@@ -162,19 +162,19 @@ def compute_proportion_perturbed(language):
 
 @click.command()
 @click.argument("language")
-@click.argument("aug_pool_size")
+@click.argument("aug_pool_size", type=int)
 def inspect_high_loss_candidates(language, aug_pool_size):
     # open the likelihoods path and load it into a dataframe.
     hyperparams = {
-        "rand_seed": [0],
-        "aug_pool_size": [100000], 
-        "train_medium": [False]
+        "rand_seed": 0,
+        "aug_pool_size": 100000, 
+        "train_medium": False
     }
     initial_path = get_initial_model_path(language, **hyperparams)
     likelihood_pkl_path = f"{initial_path}/{language}_log_likelihoods.pickle"
     with open(likelihood_pkl_path, 'rb') as f:
         example_likelihoods = pkl.load(f)
-    indices, log_likelihoods = zip*(example_likelihoods)
+    indices, log_likelihoods = zip(*example_likelihoods)
     negative_log_likelihoods = -np.array(log_likelihoods)
     likelihood_frame = pd.DataFrame({
         "nll": negative_log_likelihoods
@@ -182,8 +182,13 @@ def inspect_high_loss_candidates(language, aug_pool_size):
     generation_frame = get_initial_generation_frame(language, aug_pool_size)
     num_generation = len(generation_frame)
     num_gold = num_generation - aug_pool_size
+    test_frame = generation_frame.loc[np.arange(num_gold)]
     augmentation_frame = generation_frame.loc[np.arange(num_gold, num_generation)] 
     augmentation_frame = augmentation_frame.join(likelihood_frame)
+
+    # use the test_frame and the test_foreign_key column in augmentation_frame to add a column original_tgt to augmentation_frame.
+    test_frame = test_frame.rename(columns={"tgt": "original_tgt"})
+    augmentation_frame = augmentation_frame.join(test_frame['original_tgt'], on='test_foreign_key')
     print(augmentation_frame)
 
 @click.group()
