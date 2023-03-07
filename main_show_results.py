@@ -131,7 +131,7 @@ def main(args):
             all_frames.append(frame)
         all_results_frame = pd.concat(all_frames)
         cur_date = datetime.today().date().isoformat()
-        all_results_frame.to_csv(f"{SCRATCH_PATH}/all_languages_results_{cur_date}_compositional.csv")
+        all_results_frame.to_csv(f"{SCRATCH_PATH}/all_languages_results_{cur_date}_seed={seed}_aug_pool_size={aug_pool_size}_compositional.csv")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
