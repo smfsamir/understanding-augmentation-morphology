@@ -1,5 +1,6 @@
 import pdb
 import sys
+import click
 from typing import Dict
 import seaborn as sns
 import pickle as pkl
@@ -156,5 +157,40 @@ def compute_proportion_perturbed(language):
     # print the mean of the proportion_perturbed column.
     return (merged_frame['proportion_perturbed'].mean())
 
-for language in LANGUAGES:
-    print(f"Proportion perturbed for {language}: {compute_proportion_perturbed(language)}")
+# for language in LANGUAGES:
+#     print(f"Proportion perturbed for {language}: {compute_proportion_perturbed(language)}")
+
+@click.command()
+@click.argument("language")
+@click.argument("aug_pool_size")
+def inspect_high_loss_candidates(language, aug_pool_size):
+    # open the likelihoods path and load it into a dataframe.
+    hyperparams = {
+        "rand_seed": [0],
+        "aug_pool_size": [100000], 
+        "train_medium": [False]
+    }
+    initial_path = get_initial_model_path(language, **hyperparams)
+    likelihood_pkl_path = f"{initial_path}/{language}_log_likelihoods.pickle"
+    with open(likelihood_pkl_path, 'rb') as f:
+        example_likelihoods = pkl.load(f)
+    indices, log_likelihoods = zip*(example_likelihoods)
+    negative_log_likelihoods = -np.array(log_likelihoods)
+    likelihood_frame = pd.DataFrame({
+        "nll": negative_log_likelihoods
+    }, index = indices)
+    generation_frame = get_initial_generation_frame(language, aug_pool_size)
+    num_generation = len(generation_frame)
+    num_gold = num_generation - aug_pool_size
+    augmentation_frame = generation_frame.loc[np.arange(num_gold, num_generation)] 
+    augmentation_frame = augmentation_frame.join(likelihood_frame)
+    print(augmentation_frame)
+
+@click.group()
+def main():
+    pass
+
+main.add_command(inspect_high_loss_candidates)
+
+if __name__ == "__main__":
+    main()
