@@ -5,7 +5,7 @@ from typing import Dict
 import seaborn as sns
 import pickle as pkl
 from sklearn.preprocessing import LabelEncoder
-
+from Levenshtein import distance
 
 import numpy as np
 import pandas as pd
@@ -182,13 +182,19 @@ def inspect_high_loss_candidates(language, aug_pool_size):
     generation_frame = get_initial_generation_frame(language, aug_pool_size)
     num_generation = len(generation_frame)
     num_gold = num_generation - aug_pool_size
-    test_frame = generation_frame.loc[np.arange(num_gold)]
+    # load the train frame for the language.
+    train_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-train-low", header=None, names=["src", "tgt" ,"tag"], sep='\t')
     augmentation_frame = generation_frame.loc[np.arange(num_gold, num_generation)] 
     augmentation_frame = augmentation_frame.join(likelihood_frame)
 
     # use the test_frame and the test_foreign_key column in augmentation_frame to add a column original_tgt to augmentation_frame.
-    test_frame = test_frame.rename(columns={"tgt": "original_tgt"})
-    augmentation_frame = augmentation_frame.join(test_frame['original_tgt'], on='test_foreign_key')
+    train_frame = train_frame.rename(columns={"tgt": "original_tgt"})
+    augmentation_frame = augmentation_frame.merge(train_frame[['original_tgt']], left_on='test_foreign_key', right_index=True)
+    print(augmentation_frame)
+
+    # # compute the levenstein distance between the original_tgt and the tgt column in augmentation_frame. Add a column called levenstein_distance to augmentation_frame.
+    augmentation_frame['levenstein_distance'] = augmentation_frame.apply(lambda row: distance(row['original_tgt'], row['tgt']), axis=1)
+    # add another column proportion_perturbed to augmentation_frame. 
     print(augmentation_frame)
 
 @click.group()
