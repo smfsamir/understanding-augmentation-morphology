@@ -162,45 +162,43 @@ def compute_proportion_perturbed(language):
 #     print(f"Proportion perturbed for {language}: {compute_proportion_perturbed(language)}")
 
 @click.command()
-@click.argument("language")
 @click.argument("aug_pool_size", type=int)
-def inspect_high_loss_candidates(language, aug_pool_size):
+def inspect_high_loss_candidates(aug_pool_size):
     # open the likelihoods path and load it into a dataframe.
     hyperparams = {
         "rand_seed": 0,
         "aug_pool_size": 100000, 
         "train_medium": False
     }
-    initial_path = get_initial_model_path(language, **hyperparams)
-    likelihood_pkl_path = f"{initial_path}/{language}_log_likelihoods.pickle"
-    with open(likelihood_pkl_path, 'rb') as f:
-        example_likelihoods = pkl.load(f)
-    indices, log_likelihoods = zip(*example_likelihoods)
-    negative_log_likelihoods = -np.array(log_likelihoods)
-    likelihood_frame = pd.DataFrame({
-        "nll": negative_log_likelihoods
-    }, index = indices)
-    generation_frame = get_initial_generation_frame(language, aug_pool_size)
-    num_generation = len(generation_frame)
-    num_gold = num_generation - aug_pool_size
-    # load the train frame for the language.
-    train_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-train-low", header=None, names=["src", "tgt" ,"tag"], sep='\t')
-    augmentation_frame = generation_frame.loc[np.arange(num_gold, num_generation)] 
-    augmentation_frame = augmentation_frame.join(likelihood_frame)
+    for language in LANGUAGES:
+        initial_path = get_initial_model_path(language, **hyperparams)
+        likelihood_pkl_path = f"{initial_path}/{language}_log_likelihoods.pickle"
+        with open(likelihood_pkl_path, 'rb') as f:
+            example_likelihoods = pkl.load(f)
+        indices, log_likelihoods = zip(*example_likelihoods)
+        negative_log_likelihoods = -np.array(log_likelihoods)
+        likelihood_frame = pd.DataFrame({
+            "nll": negative_log_likelihoods
+        }, index = indices)
+        generation_frame = get_initial_generation_frame(language, aug_pool_size)
+        num_generation = len(generation_frame)
+        num_gold = num_generation - aug_pool_size
+        # load the train frame for the language.
+        train_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-train-low", header=None, names=["src", "tgt" ,"tag"], sep='\t')
+        augmentation_frame = generation_frame.loc[np.arange(num_gold, num_generation)] 
+        augmentation_frame = augmentation_frame.join(likelihood_frame)
 
-    # use the test_frame and the test_foreign_key column in augmentation_frame to add a column original_tgt to augmentation_frame.
-    train_frame = train_frame.rename(columns={"tgt": "original_tgt"})
-    augmentation_frame = augmentation_frame.merge(train_frame[['original_tgt']], left_on='test_foreign_key', right_index=True)
-    print(augmentation_frame)
+        # use the test_frame and the test_foreign_key column in augmentation_frame to add a column original_tgt to augmentation_frame.
+        train_frame = train_frame.rename(columns={"tgt": "original_tgt"})
+        augmentation_frame = augmentation_frame.merge(train_frame[['original_tgt']], left_on='test_foreign_key', right_index=True)
+        print(augmentation_frame)
 
-    # # compute the levenstein distance between the original_tgt and the tgt column in augmentation_frame. Add a column called levenstein_distance to augmentation_frame.
-    augmentation_frame['levenstein_distance'] = augmentation_frame.apply(lambda row: distance(row['original_tgt'], row['tgt']), axis=1)
-    # add another column proportion_perturbed to augmentation_frame. 
-    print(augmentation_frame)
-    # store the augmentation frame to a csv file in the ANALYSIS_SCRATCH_PATH.
-    store_csv_dynamic(augmentation_frame, "loss_analysis_frame_{}_{}".format(language, aug_pool_size), ANALYSIS_SCRATCH_PATH)
-
-
+        # # compute the levenstein distance between the original_tgt and the tgt column in augmentation_frame. Add a column called levenstein_distance to augmentation_frame.
+        augmentation_frame['levenstein_distance'] = augmentation_frame.apply(lambda row: distance(row['original_tgt'], row['tgt']), axis=1)
+        # add another column proportion_perturbed to augmentation_frame. 
+        print(augmentation_frame)
+        # store the augmentation frame to a csv file in the ANALYSIS_SCRATCH_PATH.
+        store_csv_dynamic(augmentation_frame, "loss_analysis_frame_{}_{}".format(language, aug_pool_size), ANALYSIS_SCRATCH_PATH)
 
 @click.group()
 def main():
