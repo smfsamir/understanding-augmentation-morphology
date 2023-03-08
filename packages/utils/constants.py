@@ -8,3 +8,4 @@ HALL_EXPANDED_DATA_PATH = "/home/fsamir8/projects/rrg-msilfver/fsamir8/mixture-o
 LANGUAGES=("bengali", "turkish", "finnish", "georgian", "arabic", "navajo", "spanish")
 ALGORITHMS = ('random', 'uncertainty_sample', 'initial', 'diversity_sample')
 INITIAL_MODEL_PARAMS=('train_medium', 'rand_seed', 'aug_pool_size')
+ANALYSIS_SCRATCH_PATH = "/home/fsamir8/scratch/augmentation_subset_select/analysis"
