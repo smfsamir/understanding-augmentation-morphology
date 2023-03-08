@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 from packages.fairseq_utils.dataloading_utils import get_initial_generation_frame, get_augmentation_example_lengths
 from packages.utils.util_functions import get_number_test_examples, get_initial_model_path, generate_hyperparams
 from packages.augmentation.subset_selecter_strategy import get_subset_selecter 
-from packages.utils.constants import LANGUAGES, HALL_DATA_PATH, SCRATCH_PATH, SIGM_DATA_PATH
+from packages.utils.constants import LANGUAGES, HALL_DATA_PATH, SCRATCH_PATH, SIGM_DATA_PATH, ANALYSIS_SCRATCH_PATH, ALGORITHMS, INITIAL_MODEL_PARAMS
 from packages.visualizations.visualize import visualize_nll_comparison, visualize_nlls_all, visualize_uat_selection
+from packages.pkl_operations.pkl_io import store_csv_dynamic
 
 def load_augment_likelihoods(language: str, **kwargs) -> pd.DataFrame:
     initial_path = get_initial_model_path(language, **kwargs)
@@ -196,6 +197,10 @@ def inspect_high_loss_candidates(language, aug_pool_size):
     augmentation_frame['levenstein_distance'] = augmentation_frame.apply(lambda row: distance(row['original_tgt'], row['tgt']), axis=1)
     # add another column proportion_perturbed to augmentation_frame. 
     print(augmentation_frame)
+    # store the augmentation frame to a csv file in the ANALYSIS_SCRATCH_PATH.
+    store_csv_dynamic(augmentation_frame, "loss_analysis_frame_{}_{}".format(language, aug_pool_size), ANALYSIS_SCRATCH_PATH)
+
+
 
 @click.group()
 def main():
