@@ -44,7 +44,19 @@ def show_results(language, seed, aug_pool_size):
 def obtain_predictions_interactive(predictions_f: TextIO):
     cur_line = predictions_f.readline()
     predictions = []
+    tags = []
     while not cur_line == '':
+        tag_line = cur_line.split('\t')[1]
+        # the tag is the sequence of tokens (separated by ' ') starting from either 'V' or 'N' in the tag line.
+        # it is a sequence of tokens looking like 'V IND PRS 2 SG' or 'V IND PST 3 PL IPFV'.
+        # there will be oome number of non-tag tokens before the tag, e.g., d e t e r m i n a r V IND PRS 2 SG.
+        # we want to extract the tag, which is the last sequence of tokens in the line.
+        tokens = tag_line.split(' ')
+        cur_token = 0
+        while cur_token < len(tokens) and tokens[cur_token] not in ['V', 'N']:
+            cur_token += 1
+        tag = ' '.join(tokens[cur_token:])
+        tags.append(tag)
         predictions_f.readline() # skip generation time
         prediction_line = predictions_f.readline().strip()
         prediction = prediction_line.split('\t')[2]
@@ -53,7 +65,7 @@ def obtain_predictions_interactive(predictions_f: TextIO):
         predictions_f.readline() # skip second prediction line
         predictions_f.readline() # skip per-token likelihood
         cur_line = predictions_f.readline() # start of new block
-    return predictions
+    return predictions, tags
 
 def show_results_compositional(language: str, seed: int, aug_pool_size: int):
     prefix_dir = get_top_path(language, seed, aug_pool_size)
@@ -62,6 +74,7 @@ def show_results_compositional(language: str, seed: int, aug_pool_size: int):
     results = []
     data_quantity = []
     num_datapoints = []
+    macro_accs = []
 
     failed_dirs = []
     join_tokens = lambda s: ''.join(s.split(' '))
@@ -83,7 +96,7 @@ def show_results_compositional(language: str, seed: int, aug_pool_size: int):
 
         try: 
             with open(f"{prefix_dir}/{cur_dir}/{result_file}", 'r') as predictions_f:
-                predictions = obtain_predictions_interactive(predictions_f)
+                predictions, tags = obtain_predictions_interactive(predictions_f)
                 try: 
                     assert len(predictions) == len(targets), f"len predictions is {len(predictions)} but the ground truth is of length {len(targets)}. Failed on {cur_dir}"
                 except AssertionError as e:
@@ -100,14 +113,29 @@ def show_results_compositional(language: str, seed: int, aug_pool_size: int):
 
         methods.append(cur_dir)
         num_datapoints.append(len(predictions))
+
+        # compute the macro averaged accuracy over the tags.
+        # create a dataframe with the predictions, targets, and tags.
+        df = pd.DataFrame({
+            'prediction': predictions,
+            'target': targets,
+            'tag': tags
+        })
+        # group by tag and compute the accuracy for each tag.
+        tag_grouped = df.groupby('tag')
+        tag_accs = tag_grouped.apply(lambda x: sum(x['prediction'] == x['target'])/len(x))
+        # compute the macro average of the tag accuracies.
+        macro_avg = sum(tag_accs)/len(tag_accs)
+        macro_accs.append(macro_avg)
+        
     print(f"All failed directories: {failed_dirs}")
     frame = pd.DataFrame({
         "method": methods,
         "result": results,
-        "num_eval_datapoints": num_datapoints
+        "num_eval_datapoints": num_datapoints,
+        "macro_avg_acc": macro_accs
     })
     return frame
-
 
 def main(args):
     seed = args.rand_seed
