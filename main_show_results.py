@@ -1,3 +1,4 @@
+import numpy as np
 from typing import TextIO
 import re
 import sys
@@ -75,6 +76,7 @@ def show_results_compositional(language: str, seed: int, aug_pool_size: int):
     data_quantity = []
     num_datapoints = []
     macro_accs = []
+    macro_stds = []
 
     failed_dirs = []
     join_tokens = lambda s: ''.join(s.split(' '))
@@ -127,13 +129,18 @@ def show_results_compositional(language: str, seed: int, aug_pool_size: int):
         # compute the macro average of the tag accuracies.
         macro_avg = sum(tag_accs)/len(tag_accs)
         macro_accs.append(macro_avg)
+        # also compute standard deviation of the tag accuracies.
+        macro_std = np.std(tag_accs)
+        macro_stds.append(macro_std)
+
         
     print(f"All failed directories: {failed_dirs}")
     frame = pd.DataFrame({
         "method": methods,
         "result": results,
         "num_eval_datapoints": num_datapoints,
-        "macro_avg_acc": macro_accs
+        "macro_avg_acc": macro_accs,
+        "macro_std": macro_stds,
     })
     return frame
 
