@@ -87,7 +87,7 @@ def inspect_nlls():
         "use_empirical": [False], 
         "use_loss": [True], 
         "rand_seed": [0],
-        "aug_pool_size": [100000]
+        "aug_pool_size": [100000],
     }
     languages, random_nlls, uat_nlls, num_augs = [], [], [], []
     for language in LANGUAGES:
@@ -109,6 +109,35 @@ def inspect_nlls():
         "num_aug": num_augs
     })
     nll_frame.to_csv(f"{SCRATCH_PATH}/nlls.csv", index=False)
+
+@click.command()
+def inspect_tag_distribution():
+    hyperparams = {
+        "num_aug": [128, 256, 512, 1024, 2048],
+        "train_medium": [False], 
+        "use_empirical": [False], 
+        "use_loss": [True], 
+        "rand_seed": [0],
+        "aug_pool_size": [100000],
+        "use_high_loss": [True]
+    }
+    strategies = ['random', 'uat', 'uncertainty_sample']
+    tag_count_frames = []
+    for language in LANGUAGES:
+        print(f"Language: {language}")
+        for hparam_comb in generate_hyperparams(hyperparams):
+            for strategy in strategies:
+                frame = inspect_augmentation_candidates(language, strategy, hparam_comb)
+                # get the value counts of the tag column. Add a column called 'strategy' and set it to the strategy. Add a column called 'language' and set it to the language.
+                value_counts = frame['tag'].value_counts()
+                value_counts = value_counts.reset_index()
+                value_counts.columns = ['tag', 'count']
+                value_counts['strategy'] = strategy
+                value_counts['language'] = language
+                tag_count_frames.append(value_counts)
+
+    tag_count_frame = pd.concat(tag_count_frames)
+    tag_count_frame.to_csv(f"{SCRATCH_PATH}/tag_counts.csv", index=False)
 
 def visualize_aug_tag_distribution():
     # iterate over all languages and load the augmentation frame. Then concatenate the the series of tags. Create another column called language to keep track of the language.
@@ -205,6 +234,7 @@ def main():
     pass
 
 main.add_command(inspect_high_loss_candidates)
+main.add_command(inspect_tag_distribution)
 
 if __name__ == "__main__":
     main()
