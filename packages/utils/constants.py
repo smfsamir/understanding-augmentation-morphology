@@ -9,3 +9,6 @@ LANGUAGES=("bengali", "turkish", "finnish", "georgian", "arabic", "navajo", "spa
 ALGORITHMS = ('random', 'uncertainty_sample', 'initial', 'diversity_sample')
 INITIAL_MODEL_PARAMS=('train_medium', 'rand_seed', 'aug_pool_size')
 ANALYSIS_SCRATCH_PATH = "/home/fsamir8/scratch/augmentation_subset_select/analysis"
+
+
+ST_2023 = "/project/rrg-msilfver/fsamir8/2023InflectionST/data/fin.trn"
