@@ -1,5 +1,6 @@
+import click
 import os
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers import T5ForConditionalGeneration
 from datasets import Dataset
 from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
@@ -75,9 +76,47 @@ def train_model(dataset: Dataset, lang_code: str):
     )
     return trainer
 
+def test_model(lang_code):
+    # load model. Get the model from the output dir. Use the latest checkpoint.
+    # use AutoModelForSeq2SeqLM and load from the output dir.
+    output_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_models_{lang_code}"
+    most_recent_checkpoint = max(os.listdir(output_dir))
+    model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
+    with open(f"{ST_2023}/{lang_code}.tst", "r") as f:
+        lines = f.readlines()
+    lines = [line.strip().split("\t") for line in lines]
+    lines = [line[:3] for line in lines]
+    dataset = Dataset.from_dict({"input": [line[0] for line in lines],
+                                    "feature": [line[1] for line in lines],
+                                    "output": [line[2] for line in lines]})
+    inputs = [f"{dataset['input'][i]}.{dataset['feature'][i]}" for i in range(len(dataset["input"]))]
+    model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
+    model_inputs["labels"] = labels["input_ids"]
+    model_inputs = model_inputs.to("cuda")
+    model = model.to("cuda")
+    model.eval()
+    with torch.no_grad():
+        outputs = model(**model_inputs)
+    # Decode the outputs to be human readable.
+    # print the outputs.
+    outputs = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
+    print(outputs)
+
+
+
+
+
+    # load test dataset
+    # evaluate model
+    # print results
+
+
 def main():
     fin_dataset = load_dataset("fin")
     trainer = train_model(fin_dataset, "fin")
     trainer.train()
 
-main()
+# main()
+test_model("fin")
