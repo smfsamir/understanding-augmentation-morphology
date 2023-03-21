@@ -31,7 +31,9 @@ def load_dataset(lang_code: str) -> Dataset:
 
 def preprocess_dataset(dataset: Dataset) -> Dataset:
     # encode the input using the tokenizer for byt5
-    inputs = f"{dataset['input']}.{dataset['feature']}"
+    # join the input and feature columns
+    inputs = [f"{dataset['input'][i]}.{dataset['feature'][i]}" for i in range(len(dataset["input"]))]
+
     model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
