@@ -76,3 +76,5 @@ def train_model(dataset: Dataset, lang_code: str):
 def main():
     fin_dataset = load_dataset("fin")
     trainer = train_model(fin_dataset, "fin")
+
+main()
