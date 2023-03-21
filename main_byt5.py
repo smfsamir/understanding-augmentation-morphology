@@ -1,3 +1,4 @@
+import os
 from transformers import AutoTokenizer
 from transformers import T5ForConditionalGeneration
 from datasets import Dataset
@@ -42,6 +43,13 @@ def train_model(dataset: Dataset, lang_code: str):
     # instantiate trainer
     # train model
     # save model
+    logging_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_checkpoints_{lang_code}"
+    output_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_models_{lang_code}"
+    # create the logging dir and output dir if they don't exist
+    if not os.path.exists(logging_dir):
+        os.makedirs(logging_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     training_arguments = TrainingArguments(
         output_dir=f"models/{lang_code}",
         num_train_epochs=1,
@@ -49,7 +57,7 @@ def train_model(dataset: Dataset, lang_code: str):
         per_device_eval_batch_size=1,
         warmup_steps=500,
         weight_decay=0.01,
-        logging_dir=f"{SCRATCH_PATH}/augmentation_subset_select/byt5_checkpoints_{lang_code}",
+        logging_dir=logging_dir,
         logging_steps=10
     )
     train_dataset = dataset.map(preprocess_dataset, batched=True) 
@@ -64,3 +72,7 @@ def train_model(dataset: Dataset, lang_code: str):
         tokenizer=tokenizer
     )
     return trainer
+
+def main():
+    fin_dataset = load_dataset("fin")
+    trainer = train_model(fin_dataset, "fin")
