@@ -11,4 +11,4 @@ INITIAL_MODEL_PARAMS=('train_medium', 'rand_seed', 'aug_pool_size')
 ANALYSIS_SCRATCH_PATH = "/home/fsamir8/scratch/augmentation_subset_select/analysis"
 
 
-ST_2023 = "/project/rrg-msilfver/fsamir8/2023InflectionST/data/"
+ST_2023 = "/project/rrg-msilfver/fsamir8/2023InflectionST/data"
