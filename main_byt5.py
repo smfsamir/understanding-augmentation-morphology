@@ -1,10 +1,15 @@
 from transformers import AutoTokenizer
 from transformers import T5ForConditionalGeneration
+from datasets import Dataset
+from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
 import torch
+
+from packages.utils.constants import ST_2023, SCRATCH_PATH
 
 model = T5ForConditionalGeneration.from_pretrained("google/byt5-small")
 num_special_tokens = 3
 tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
+
 
 input_ids_prompt = "the past tense of walk is "
 input_ids = tokenizer(input_ids_prompt).input_ids
@@ -19,8 +24,61 @@ while sentinel_token in output_ids:
     output_ids_list.append(output_ids[start_token:end_token])
     start_token = end_token
     sentinel_token -= 1
-
 output_ids_list.append(output_ids[start_token:])
 output_string = tokenizer.batch_decode(output_ids_list)
 print(output_string)
 
+# TODO: load sigmorphon 2023 dataset and save it to disk. 
+def load_dataset(lang_code: str) -> Dataset:
+    # the dataset is tab separated, with the following unnamed columns:
+        # 0: input word form
+        # 1: feature tag
+        # 2: gold output word form
+    # load those 3 columns into a HuggingFace dataset.
+    # return the dataset.
+    train_file = f"{ST_2023}/{lang_code}.trn"
+    with open(train_file, "r") as f:
+        lines = f.readlines()
+    lines = [line.strip().split("\t") for line in lines]
+    lines = [line[:3] for line in lines]
+    dataset = Dataset.from_dict({"input": [line[0] for line in lines],
+                                    "feature": [line[1] for line in lines],
+                                    "output": [line[2] for line in lines]})
+    return dataset
+
+def preprocess_dataset(dataset: Dataset) -> Dataset:
+    # encode the input using the tokenizer for byt5
+    inputs = f"{dataset['input']}.{dataset['feature']}"
+    model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
+    with tokenizer.as_target_tokenizer():
+        labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
+    model_inputs["labels"] = labels["input_ids"]
+    return model_inputs
+
+def train_model(dataset: Dataset, lang_code: str):
+    # instantiate training arguments
+    # instantiate trainer
+    # train model
+    # save model
+    training_arguments = TrainingArguments(
+        output_dir=f"models/{lang_code}",
+        num_train_epochs=1,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
+        warmup_steps=500,
+        weight_decay=0.01,
+        logging_dir=f"{SCRATCH_PATH}/augmentation_subset_select/byt5_checkpoints_{lang_code}",
+        logging_steps=10
+    )
+    train_dataset = dataset.map(preprocess_dataset, batched=True) 
+    val_dataset = dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
+    collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+    trainer = Trainer(
+        model=model,
+        args=training_arguments,
+        train_dataset=train_dataset, 
+        eval_dataset=val_dataset,
+        data_collator=collator, 
+        tokenizer=tokenizer
+    )
+    return trainer
