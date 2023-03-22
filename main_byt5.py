@@ -9,18 +9,17 @@ import torch
 from packages.utils.constants import ST_2023, SCRATCH_PATH
 
 model = T5ForConditionalGeneration.from_pretrained("google/byt5-small")
-num_special_tokens = 3
 tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
 
 # TODO: load sigmorphon 2023 dataset and save it to disk. 
-def load_dataset(lang_code: str) -> Dataset:
+def load_dataset(lang_code: str, extension: str) -> Dataset:
     # the dataset is tab separated, with the following unnamed columns:
         # 0: input word form
         # 1: feature tag
         # 2: gold output word form
     # load those 3 columns into a HuggingFace dataset.
     # return the dataset.
-    train_file = f"{ST_2023}/{lang_code}.trn"
+    train_file = f"{ST_2023}/{lang_code}.{extension}"
     with open(train_file, "r") as f:
         lines = f.readlines()
     lines = [line.strip().split("\t") for line in lines]
@@ -41,7 +40,9 @@ def preprocess_dataset(dataset: Dataset) -> Dataset:
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
-def train_model(dataset: Dataset, lang_code: str):
+def run_trainer(train_dataset: Dataset, 
+                val_dataset: Dataset,
+                lang_code: str):
     # instantiate training arguments
     # instantiate trainer
     # train model
@@ -55,16 +56,22 @@ def train_model(dataset: Dataset, lang_code: str):
         os.makedirs(output_dir)
     training_arguments = TrainingArguments(
         output_dir=f"models/{lang_code}",
-        num_train_epochs=1,
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
-        warmup_steps=500,
-        weight_decay=0.01,
+        num_train_epochs=5,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        warmup_steps=1000,
+        weight_decay=0.0001,
+        learning_rate=1e-4,
         logging_dir=logging_dir,
-        logging_steps=10
+        logging_steps=500, 
+        save_steps=500, 
+        save_total_limit=2, 
+        evaluation_strategy="steps",
+        eval_steps=500, 
+        fp16=True
     )
-    train_dataset = dataset.map(preprocess_dataset, batched=True) 
-    val_dataset = dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
+    train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
+    val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
     collator = DataCollatorForSeq2Seq(tokenizer, model=model)
     trainer = Trainer(
         model=model,
@@ -74,8 +81,10 @@ def train_model(dataset: Dataset, lang_code: str):
         data_collator=collator, 
         tokenizer=tokenizer
     )
-    return trainer
+    trainer.train()
 
+@click.command()
+@click.argument("lang_code", type=str)
 def test_model(lang_code):
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
@@ -104,19 +113,18 @@ def test_model(lang_code):
     outputs = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
     print(outputs)
 
+@click.command()
+@click.argument("lang_code", type=str)
+def train_model(lang_code: str):
+    train_fin_dataset = load_dataset(lang_code, "trn")
+    val_fin_dataset = load_dataset(lang_code, "dev")
+    run_trainer(train_fin_dataset, val_fin_dataset, lang_code)
 
-
-
-
-    # load test dataset
-    # evaluate model
-    # print results
-
-
+@click.group()
 def main():
-    fin_dataset = load_dataset("fin")
-    trainer = train_model(fin_dataset, "fin")
-    trainer.train()
+    pass
 
-# main()
+main.add_command(train_model)
+main.add_command(test_model)
+
 test_model("fin")
