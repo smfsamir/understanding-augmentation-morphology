@@ -9,5 +9,7 @@
 #SBATCH --mail-type=END,FAIL,INVALID_DEPEND
 #SBATCH --mail-user=fsamir@mail.ubc.ca
 
+module load gcc/9.3.0 arrow python scipy-stack
+
 python main_byt5.py train-model fin
 python main_byt5.py test-model fin
