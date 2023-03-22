@@ -79,7 +79,7 @@ def train_model(dataset: Dataset, lang_code: str):
 def test_model(lang_code):
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
-    output_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_checkpoints_{lang_code}"
+    output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_{lang_code}"
     most_recent_checkpoint = max(os.listdir(output_dir))
     model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
     with open(f"{ST_2023}/{lang_code}.tst", "r") as f:
