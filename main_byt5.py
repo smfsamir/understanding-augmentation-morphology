@@ -82,7 +82,7 @@ def test_model(lang_code):
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_{lang_code}"
     most_recent_checkpoint = max(os.listdir(output_dir))
     model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
-    with open(f"{ST_2023}/{lang_code}.tst", "r") as f:
+    with open(f"{ST_2023}/{lang_code}.dev", "r") as f:
         lines = f.readlines()
     lines = [line.strip().split("\t") for line in lines]
     lines = [line[:3] for line in lines]
