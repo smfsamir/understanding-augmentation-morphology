@@ -56,7 +56,7 @@ def run_trainer(train_dataset: Dataset,
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     training_arguments = TrainingArguments(
-        output_dir=f"models/{lang_code}",
+        output_dir=output_dir,
         num_train_epochs=20,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
@@ -68,12 +68,10 @@ def run_trainer(train_dataset: Dataset,
         save_steps=500, 
         save_total_limit=2, 
         evaluation_strategy="steps",
-        eval_steps=500, 
-        fp16=True
+        eval_steps=500
     )
     train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
     val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
-    # TODO: check the label_pad_token_id
     collator = DataCollatorForSeq2Seq(tokenizer, model=model, label_pad_token_id=tokenizer.pad_token_id)
     trainer = Trainer(
         model=model,
