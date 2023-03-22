@@ -1,3 +1,4 @@
+import numpy as np
 import click
 import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
@@ -86,6 +87,7 @@ def run_trainer(train_dataset: Dataset,
 @click.command()
 @click.argument("lang_code", type=str)
 def test_model(lang_code):
+    print(f"Generating predictions for {lang_code}.")
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_{lang_code}"
@@ -111,11 +113,16 @@ def test_model(lang_code):
     # Decode the outputs to be human readable.
     # print the outputs.
     outputs = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
-    print(outputs)
+    # print a random sample of the outputs.
+    for _ in range(10):
+        rand_num = np.random.randint(0, len(outputs))
+        print(f"Input: {inputs[rand_num]}; Output: {outputs[rand_num]}; Gold: {dataset['output'][rand_num]}")
+    
 
 @click.command()
 @click.argument("lang_code", type=str)
 def train_model(lang_code: str):
+    print(f"Training model for {lang_code}.")
     train_fin_dataset = load_dataset(lang_code, "trn")
     val_fin_dataset = load_dataset(lang_code, "dev")
     run_trainer(train_fin_dataset, val_fin_dataset, lang_code)
@@ -126,5 +133,3 @@ def main():
 
 main.add_command(train_model)
 main.add_command(test_model)
-
-test_model("fin")
