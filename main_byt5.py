@@ -133,3 +133,6 @@ def main():
 
 main.add_command(train_model)
 main.add_command(test_model)
+
+if __name__ == "__main__":
+    main()
