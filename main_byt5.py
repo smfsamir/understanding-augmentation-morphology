@@ -58,7 +58,7 @@ def run_trainer(train_dataset: Dataset,
     training_arguments = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=20,
-        per_device_train_batch_size=8,
+        per_device_train_batch_size=400,
         per_device_eval_batch_size=8,
         warmup_steps=1000,
         weight_decay=0.0001,
