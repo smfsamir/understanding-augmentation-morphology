@@ -10,3 +10,4 @@
 #SBATCH --mail-user=fsamir@mail.ubc.ca
 
 python main_byt5.py train-model fin
+python main_byt5.py test-model fin
