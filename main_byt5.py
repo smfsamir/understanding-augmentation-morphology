@@ -116,6 +116,9 @@ def test_model(lang_code):
     for _ in range(10):
         rand_num = np.random.randint(0, len(outputs))
         print(f"Input: {inputs[rand_num]}; Output: {outputs[rand_num]}; Gold: {dataset['output'][rand_num]}")
+    # print the overall accuracy.
+    accuracy = sum([1 if outputs[i] == dataset["output"][i] else 0 for i in range(len(outputs))]) / len(outputs)
+    print(f"Overall accuracy: {accuracy}")
     
 
 @click.command()
