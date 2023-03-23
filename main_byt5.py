@@ -48,8 +48,8 @@ def run_trainer(train_dataset: Dataset,
     # instantiate trainer
     # train model
     # save model
-    logging_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_logs_{lang_code}"
-    output_dir = f"{SCRATCH_PATH}/augmentation_subset_select/byt5_checkpoints_{lang_code}"
+    logging_dir = f"{SCRATCH_PATH}/byt5_logs_{lang_code}"
+    output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_{lang_code}"
     # create the logging dir and output dir if they don't exist
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
