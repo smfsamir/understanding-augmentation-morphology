@@ -123,7 +123,7 @@ def test_model(lang_code):
 
 @click.command()
 # add a flag, indicating whether or not to load the datasets from scratch in order to save them to disk.
-@click.argument("construct_arrow_dataset", flag=True) # should be on the first time we run the training script.
+@click.option("--construct_arrow_dataset", is_flag=True, default=False) # should be on the first time we run the training script.
 def train_model(construct_arrow_dataset: bool):
     if construct_arrow_dataset:
         lang_codes = []
