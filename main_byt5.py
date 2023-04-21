@@ -85,41 +85,39 @@ def run_trainer(train_dataset: Dataset,
     trainer.train()
 
 @click.command()
-@click.argument("lang_code", type=str)
-def test_model(lang_code):
-    print(f"Generating predictions for {lang_code}.")
+@click.argument("test_dataset", type=Dataset)
+def test_model(test_dataset):
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
-    output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_{lang_code}"
+    output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
     most_recent_checkpoint = max(os.listdir(output_dir))
     model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
-    with open(f"{ST_2023}/{lang_code}.dev", "r") as f:
-        lines = f.readlines()
-    lines = [line.strip().split("\t") for line in lines]
-    lines = [line[:3] for line in lines]
-    dataset = Dataset.from_dict({"input": [line[0] for line in lines],
-                                    "feature": [line[1] for line in lines],
-                                    "output": [line[2] for line in lines]})
-    inputs = [f"{dataset['input'][i]}.{dataset['feature'][i]}" for i in range(len(dataset["input"]))]
-    model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
-    with tokenizer.as_target_tokenizer():
-        labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
-    model_inputs["labels"] = labels["input_ids"]
-    model_inputs = model_inputs.to("cuda")
-    model = model.to("cuda")
-    model.eval()
-    with torch.no_grad():
-        outputs = model(**model_inputs)
-    # Decode the outputs to be human readable.
-    # print the outputs.
-    outputs = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
-    # print a random sample of the outputs.
-    for _ in range(10):
-        rand_num = np.random.randint(0, len(outputs))
-        print(f"Input: {inputs[rand_num]}; Output: {outputs[rand_num]}; Gold: {dataset['output'][rand_num]}")
-    # print the overall accuracy.
-    accuracy = sum([1 if outputs[i] == dataset["output"][i] else 0 for i in range(len(outputs))]) / len(outputs)
-    print(f"Overall accuracy: {accuracy}")
+    test_dataset = test_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
+    batch_size = 16
+
+    # run the model on the test dataset. Use a batch size of 16.
+    # get the predictions and the labels.
+    # compute the accuracy.
+    # print the accuracy.
+
+    num_correct = 0
+    num_total = 0
+    for i in range(0, len(test_dataset), batch_size):
+        batch = test_dataset[i:i+batch_size]
+        input_ids = [example["input_values"] for example in batch]
+        target_texts = [example["output"] for example in batch]
+
+        # Generate the predictions for the batch
+        generated_ids = model.generate(
+            input_ids,
+            max_length=128,
+            num_beams=4,
+            early_stopping=True
+        )
+        generated_texts = model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        num_correct += sum([1 if generated_texts[i] == target_texts[i] else 0 for i in range(len(generated_texts))])
+        num_total += len(generated_texts)
+    print(f"Overall accuracy: {num_correct/num_total}")
 
 @click.command()
 # add a flag, indicating whether or not to load the datasets from scratch in order to save them to disk.
