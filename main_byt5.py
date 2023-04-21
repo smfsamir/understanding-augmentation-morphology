@@ -3,7 +3,7 @@ import click
 import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers import T5ForConditionalGeneration
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets, load_from_disk
 from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
 import torch
 
@@ -25,7 +25,8 @@ def load_dataset(lang_code: str, extension: str) -> Dataset:
         lines = f.readlines()
     lines = [line.strip().split("\t") for line in lines]
     lines = [line[:3] for line in lines]
-    dataset = Dataset.from_dict({"input": [line[0] for line in lines],
+    # TODO: modify this to take the language code as part of the input. 
+    dataset = Dataset.from_dict({"input": [f"<{lang_code}>{line[0]}" for line in lines],
                                     "feature": [line[1] for line in lines],
                                     "output": [line[2] for line in lines]})
     return dataset
@@ -119,15 +120,31 @@ def test_model(lang_code):
     # print the overall accuracy.
     accuracy = sum([1 if outputs[i] == dataset["output"][i] else 0 for i in range(len(outputs))]) / len(outputs)
     print(f"Overall accuracy: {accuracy}")
-    
 
 @click.command()
-@click.argument("lang_code", type=str)
-def train_model(lang_code: str):
-    print(f"Training model for {lang_code}.")
-    train_fin_dataset = load_dataset(lang_code, "trn")
-    val_fin_dataset = load_dataset(lang_code, "dev")
-    run_trainer(train_fin_dataset, val_fin_dataset, lang_code)
+# add a flag, indicating whether or not to load the datasets from scratch in order to save them to disk.
+@click.argument("construct_arrow_dataset", flag=True) # should be on the first time we run the training script.
+def train_model(construct_arrow_dataset: bool):
+    if construct_arrow_dataset:
+        lang_codes = []
+        for fname in os.listdir(ST_2023):
+            lang_codes.append(fname.split(".")[0])
+        lang_codes = set(lang_codes)
+        train_datasets = []
+        val_datasets = []
+        for lang_code in lang_codes:
+            train_dataset = load_dataset(lang_code, "trn")
+            train_datasets.append(train_dataset)
+            val_dataset = load_dataset(lang_code, "dev")
+            val_datasets.append(val_dataset)
+        train_dataset = concatenate_datasets(train_datasets)
+        val_dataset = concatenate_datasets(val_datasets)
+        train_dataset.save_to_disk(f"{SCRATCH_PATH}/byt5_all_train_dataset") # TODO: change the path
+        val_dataset.save_to_disk(f"{SCRATCH_PATH}/byt5_all_val_dataset") # TODO: change the path
+    else:
+        train_dataset = load_from_disk(f"{SCRATCH_PATH}/byt5_all_train_dataset")
+        val_dataset = load_from_disk(f"{SCRATCH_PATH}/byt5_all_val_dataset")
+    run_trainer(train_dataset, val_dataset, "all")
 
 @click.group()
 def main():
