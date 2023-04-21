@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --time=10:00:00
-#SBATCH --gpus=1
+#SBATCH --gpus=v100:1
 #SBATCH --account=rrg-mageed
 #SBATCH --account=rrg-mageed
 #SBATCH --output=/scratch/fsamir8/augmentation_subset_select/byt5_train_all.out
