@@ -36,9 +36,7 @@ def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
 
     # TODO: can this be done better?
     inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
-
     source_input_ids = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")["input_ids"]
-
     if is_labelled:
         with tokenizer.as_target_tokenizer():
             label_input_ids = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
@@ -96,7 +94,7 @@ def test_model():
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
     most_recent_checkpoint = max(os.listdir(output_dir))
     model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
-    test_dataset = test_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
+    test_dataset = test_dataset.map(preprocess_dataset, batched=True, keep_in_memo) # TODO: currently using the same dataset for validation. fix later.
     batch_size = 16
 
     # run the model on the test dataset. Use a batch size of 16.
@@ -117,7 +115,7 @@ def test_model():
             num_beams=4,
             early_stopping=True
         )
-        generated_texts = model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         num_correct += sum([1 if generated_texts[i] == batch['output'][i] else 0 for i in range(len(generated_texts))])
         num_total += len(generated_texts)
     print(f"Overall accuracy: {num_correct/num_total}")
