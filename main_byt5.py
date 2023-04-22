@@ -1,3 +1,4 @@
+import pdb
 from functools import partial
 import numpy as np
 import click
@@ -28,17 +29,17 @@ def load_dataset(lang_code: str, extension: str, is_covered: bool=False) -> Data
                                         "output": [line[2] for line in lines]})
     return dataset
 
-def preprocess_dataset(dataset: Dataset, is_labelled: bool=True) -> Dataset:
+def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
     # encode the input using the tokenizer for byt5
     # join the input and feature columns
-    inputs = [f"{dataset['input'][i]}.{dataset['feature'][i]}" for i in range(len(dataset["input"]))]
+    inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
 
-    model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
+    batch['input_values'] = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
     if is_labelled:
         with tokenizer.as_target_tokenizer():
-            labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
-        model_inputs["labels"] = labels["input_ids"]
-    return model_inputs
+            labels = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
+        batch["labels"] = labels["input_ids"]
+    return batch 
 
 def run_trainer(train_dataset: Dataset, 
                 val_dataset: Dataset,
@@ -100,20 +101,19 @@ def test_model():
 
     num_correct = 0
     num_total = 0
+    pdb.set_trace()
     for i in range(0, len(test_dataset), batch_size):
         batch = test_dataset[i:i+batch_size]
-        input_ids = [example["input_values"] for example in batch]
-        target_texts = [example["output"] for example in batch]
 
         # Generate the predictions for the batch
         generated_ids = model.generate(
-            input_ids,
+            batch['input_values'],
             max_length=128,
             num_beams=4,
             early_stopping=True
         )
         generated_texts = model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
-        num_correct += sum([1 if generated_texts[i] == target_texts[i] else 0 for i in range(len(generated_texts))])
+        num_correct += sum([1 if generated_texts[i] == batch['output'][i] else 0 for i in range(len(generated_texts))])
         num_total += len(generated_texts)
     print(f"Overall accuracy: {num_correct/num_total}")
 
