@@ -1,3 +1,4 @@
+from functools import partial
 import numpy as np
 import click
 import os
@@ -12,34 +13,31 @@ from packages.utils.constants import ST_2023, SCRATCH_PATH
 model = T5ForConditionalGeneration.from_pretrained("google/byt5-small")
 tokenizer = AutoTokenizer.from_pretrained("google/byt5-small")
 
-# TODO: load sigmorphon 2023 dataset and save it to disk. 
-def load_dataset(lang_code: str, extension: str) -> Dataset:
-    # the dataset is tab separated, with the following unnamed columns:
-        # 0: input word form
-        # 1: feature tag
-        # 2: gold output word form
-    # load those 3 columns into a HuggingFace dataset.
-    # return the dataset.
+def load_dataset(lang_code: str, extension: str, is_covered: bool=False) -> Dataset:
     train_file = f"{ST_2023}/{lang_code}.{extension}"
     with open(train_file, "r") as f:
         lines = f.readlines()
     lines = [line.strip().split("\t") for line in lines]
-    lines = [line[:3] for line in lines]
-    # TODO: modify this to take the language code as part of the input. 
-    dataset = Dataset.from_dict({"input": [f"<{lang_code}>{line[0]}" for line in lines],
-                                    "feature": [line[1] for line in lines],
-                                    "output": [line[2] for line in lines]})
+    # if is_covered, then there will be no output column.
+    if is_covered:
+        dataset = Dataset.from_dict({"input": [f"<{lang_code}>{line[0]}" for line in lines],
+                                    "feature": [line[1] for line in lines]})
+    else:
+        dataset = Dataset.from_dict({"input": [f"<{lang_code}>{line[0]}" for line in lines],
+                                        "feature": [line[1] for line in lines],
+                                        "output": [line[2] for line in lines]})
     return dataset
 
-def preprocess_dataset(dataset: Dataset) -> Dataset:
+def preprocess_dataset(dataset: Dataset, is_labelled: bool=True) -> Dataset:
     # encode the input using the tokenizer for byt5
     # join the input and feature columns
     inputs = [f"{dataset['input'][i]}.{dataset['feature'][i]}" for i in range(len(dataset["input"]))]
 
     model_inputs = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
-    with tokenizer.as_target_tokenizer():
-        labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
-    model_inputs["labels"] = labels["input_ids"]
+    if is_labelled:
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(dataset["output"], padding=True, truncation=True, return_tensors="pt")
+        model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
 def run_trainer(train_dataset: Dataset, 
@@ -85,8 +83,8 @@ def run_trainer(train_dataset: Dataset,
     trainer.train()
 
 @click.command()
-@click.argument("test_dataset", type=Dataset)
-def test_model(test_dataset):
+@click.argument("test_dataset")
+def test_model(test_dataset: Dataset):
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
@@ -118,6 +116,48 @@ def test_model(test_dataset):
         num_correct += sum([1 if generated_texts[i] == target_texts[i] else 0 for i in range(len(generated_texts))])
         num_total += len(generated_texts)
     print(f"Overall accuracy: {num_correct/num_total}")
+
+@click.command()
+@click.option("--construct_arrow_dataset", is_flag=True, default=False) # should be on the first time we run the training script.
+def generate_covered_predictions(construct_arrow_dataset):
+    if construct_arrow_dataset:
+        lang_codes = []
+        for fname in os.listdir(ST_2023):
+            lang_codes.append(fname.split(".")[0])
+        lang_codes = set(lang_codes)
+        covered_datasets = []
+        for lang_code in lang_codes:
+            # the extension is .covered.tst
+            covered_dataset = load_dataset(lang_code, "covered.tst", is_covered=True)
+            covered_datasets.append(covered_dataset)
+        covered_dataset = concatenate_datasets(covered_datasets)
+        covered_dataset.save_to_disk(f"{SCRATCH_PATH}/byt5_all_covered_dataset")
+    else:
+        covered_dataset = load_from_disk(f"{SCRATCH_PATH}/byt5_all_covered_dataset")
+    output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
+    most_recent_checkpoint = max(os.listdir(output_dir))
+    model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
+    preprocess_covered_dataset = partial(preprocess_dataset, is_labelled=False)
+    covered_dataset = covered_dataset.map(preprocess_covered_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
+    batch_size = 16
+
+    # generate the predictions for the covered dataset.
+    # save the predictions to a file.
+    for i in range(0, len(covered_dataset), batch_size):
+        batch = covered_dataset[i:i+batch_size]
+        input_ids = [example["input_values"] for example in batch]
+        # Generate the predictions for the batch
+        generated_ids = model.generate(
+            input_ids,
+            max_length=128,
+            num_beams=4,
+            early_stopping=True
+        )
+        generated_texts = model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        for j in range(len(generated_texts)):
+            print(generated_texts[j])
+
+    # test_model(covered_dataset)
 
 @click.command()
 # add a flag, indicating whether or not to load the datasets from scratch in order to save them to disk.
