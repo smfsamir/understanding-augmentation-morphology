@@ -29,17 +29,21 @@ def load_dataset(lang_code: str, extension: str, is_covered: bool=False) -> Data
                                         "output": [line[2] for line in lines]})
     return dataset
 
+# to make it batched, we have to return a dictionary with the new elements to be added.
 def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
     # encode the input using the tokenizer for byt5
     # join the input and feature columns
-    inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
+    inputs = f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
 
-    batch['input_values'] = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
+    source_input_ids = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")["input_ids"]
+    assert type(source_input_ids) == torch.tensor
+
     if is_labelled:
         with tokenizer.as_target_tokenizer():
-            labels = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
-        batch["labels"] = labels["input_ids"]
-    return batch 
+            label_input_ids = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
+        return {"input_values": source_input_ids, "labels": label_input_ids["input_ids"]}
+    else:
+        return {"input_values": source_input_ids}
 
 def run_trainer(train_dataset: Dataset, 
                 val_dataset: Dataset,
