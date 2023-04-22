@@ -33,7 +33,9 @@ def load_dataset(lang_code: str, extension: str, is_covered: bool=False) -> Data
 def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
     # encode the input using the tokenizer for byt5
     # join the input and feature columns
-    inputs = f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
+
+    # TODO: can this be done better?
+    inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
 
     source_input_ids = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")["input_ids"]
     assert type(source_input_ids) == torch.tensor
