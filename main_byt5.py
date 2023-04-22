@@ -83,8 +83,8 @@ def run_trainer(train_dataset: Dataset,
     trainer.train()
 
 @click.command()
-@click.argument("test_dataset")
-def test_model(test_dataset: Dataset):
+def test_model():
+    test_dataset = load_from_disk(f"{SCRATCH_PATH}/byt5_all_val_dataset")
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
