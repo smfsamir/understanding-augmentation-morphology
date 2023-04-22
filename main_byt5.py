@@ -38,14 +38,13 @@ def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
     inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
 
     source_input_ids = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")["input_ids"]
-    assert type(source_input_ids) == torch.tensor
 
     if is_labelled:
         with tokenizer.as_target_tokenizer():
             label_input_ids = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
-        return {"input_values": source_input_ids, "labels": label_input_ids["input_ids"]}
+        return {"input_values": torch.tensor(source_input_ids), "labels": torch.tensor(label_input_ids["input_ids"])}
     else:
-        return {"input_values": source_input_ids}
+        return {"input_values": torch.tensor(source_input_ids)}
 
 def run_trainer(train_dataset: Dataset, 
                 val_dataset: Dataset,
