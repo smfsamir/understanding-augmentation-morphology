@@ -36,14 +36,14 @@ def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
 
     # TODO: can this be done better?
     inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
-    batch = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
+    new_batch = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
     if is_labelled:
         with tokenizer.as_target_tokenizer():
             label_input_ids = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
-        batch["labels"] = label_input_ids["input_ids"]
-        return batch
+        new_batch["labels"] = label_input_ids["input_ids"]
+        return new_batch
     else:
-        return batch
+        return new_batch
 
 def run_trainer(train_dataset: Dataset, 
                 val_dataset: Dataset,
