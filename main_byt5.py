@@ -88,8 +88,7 @@ def run_trainer(train_dataset: Dataset,
         train_dataset=train_dataset, 
         eval_dataset=val_dataset,
         data_collator=collator, 
-        tokenizer=tokenizer, 
-        compute_metrics=compute_metrics
+        tokenizer=tokenizer
     )
     trainer.train()
 
