@@ -1,3 +1,4 @@
+import evaluate
 import pdb
 from functools import partial
 import numpy as np
@@ -35,7 +36,7 @@ def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
     # join the input and feature columns
 
     # TODO: can this be done better?
-    inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
+    inputs = [f"{batch['input'][i]}+{batch['feature'][i]}" for i in range(len(batch["input"]))]
     new_batch = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
     if is_labelled:
         with tokenizer.as_target_tokenizer():
@@ -72,7 +73,9 @@ def run_trainer(train_dataset: Dataset,
         save_steps=500, 
         save_total_limit=2, 
         evaluation_strategy="steps",
-        eval_steps=500
+        eval_steps=500,
+        # use accuracy as the metric for best model
+        metric_for_best_model="accuracy"
     )
     train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
     val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
@@ -83,9 +86,20 @@ def run_trainer(train_dataset: Dataset,
         train_dataset=train_dataset, 
         eval_dataset=val_dataset,
         data_collator=collator, 
-        tokenizer=tokenizer
+        tokenizer=tokenizer, 
+        compute_metrics=compute_metrics
     )
     trainer.train()
+
+metric = evaluate.load("accuracy")
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+
+    pred_str = tokenizer.batch_decode(preds, skip_special_tokens=True)
+    label_str = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    acc = 100 * metric.compute(predictions=pred_str, references=label_str)
+    return {"accuracy": acc}
 
 @click.command()
 def test_model():
@@ -116,7 +130,11 @@ def test_model():
 
         model.eval()
         with torch.no_grad():
-            outputs = model(**batch)
+            # only need to pass the input_ids and attention_mask
+            input_batch = {k: v for k, v in batch.items() if k in ["input_ids", "attention_mask"]}
+            input_batch['input_ids'] = torch.tensor(input_batch['input_ids'])
+            input_batch['attention_mask'] = torch.tensor(input_batch['attention_mask'])
+            outputs = model(decoder_input_ids=input_batch['input_ids'], **input_batch)
         
         # Generate the predictions for the batch
         generated_texts = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
