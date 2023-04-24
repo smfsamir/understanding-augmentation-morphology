@@ -79,7 +79,7 @@ def run_trainer(train_dataset: Dataset,
     )
     train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
     val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
-    collator = DataCollatorForSeq2Seq(tokenizer, model=model, label_pad_token_id=tokenizer.pad_token_id)
+    collator = DataCollatorForSeq2Seq(tokenizer, model=model)
     trainer = Trainer(
         model=model,
         args=training_arguments,
@@ -94,8 +94,9 @@ def run_trainer(train_dataset: Dataset,
 metric = evaluate.load("accuracy")
 def compute_metrics(pred):
     labels = pred.label_ids
-    preds = pred.predictions.argmax(-1)
+    preds = pred.predictions
 
+    labels[labels == -100] = tokenizer.pad_token_id
     pred_str = tokenizer.batch_decode(preds, skip_special_tokens=True)
     label_str = tokenizer.batch_decode(labels, skip_special_tokens=True)
     acc = 100 * metric.compute(predictions=pred_str, references=label_str)
