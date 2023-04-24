@@ -7,7 +7,7 @@ import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers import T5ForConditionalGeneration
 from datasets import Dataset, concatenate_datasets, load_from_disk, disable_caching
-from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
+from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq, Seq2SeqTrainer, Seq2SeqTrainingArguments
 import torch
 
 from packages.utils.constants import ST_2023, SCRATCH_PATH
@@ -60,7 +60,7 @@ def run_trainer(train_dataset: Dataset,
         os.makedirs(logging_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    training_arguments = TrainingArguments(
+    training_arguments = Seq2SeqTrainingArguments(
         output_dir=output_dir,
         num_train_epochs=20,
         per_device_train_batch_size=32,
@@ -80,7 +80,8 @@ def run_trainer(train_dataset: Dataset,
     train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
     val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
     collator = DataCollatorForSeq2Seq(tokenizer, model=model)
-    trainer = Trainer(
+    # trainer = Trainer(
+    trainer = Seq2SeqTrainer(
         model=model,
         args=training_arguments,
         train_dataset=train_dataset, 
