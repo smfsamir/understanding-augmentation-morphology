@@ -75,7 +75,8 @@ def run_trainer(train_dataset: Dataset,
         evaluation_strategy="steps",
         eval_steps=500,
         # use accuracy as the metric for best model
-        metric_for_best_model="accuracy"
+        metric_for_best_model="accuracy", 
+        eval_accumulation_steps=20
     )
     train_dataset = train_dataset.map(preprocess_dataset, batched=True) 
     val_dataset = val_dataset.map(preprocess_dataset, batched=True) # TODO: currently using the same dataset for validation. fix later.
