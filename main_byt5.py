@@ -96,6 +96,9 @@ metric = evaluate.load("accuracy")
 def compute_metrics(pred):
     labels = pred.label_ids
     preds = pred.predictions
+    print(f"Preds: {preds}")
+    print(f"Length of predictions: {len(preds)}")
+    print(f"Label shape: {labels.shape}")
 
     labels[labels == -100] = tokenizer.pad_token_id
     pred_str = tokenizer.batch_decode(preds, skip_special_tokens=True)
