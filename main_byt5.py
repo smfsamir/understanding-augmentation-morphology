@@ -5,7 +5,7 @@ import click
 import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers import T5ForConditionalGeneration
-from datasets import Dataset, concatenate_datasets, load_from_disk
+from datasets import Dataset, concatenate_datasets, load_from_disk, disable_caching
 from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
 import torch
 
@@ -36,13 +36,14 @@ def preprocess_dataset(batch: Dataset, is_labelled: bool=True) -> Dataset:
 
     # TODO: can this be done better?
     inputs = [f"{batch['input'][i]}.{batch['feature'][i]}" for i in range(len(batch["input"]))]
-    source_input_ids = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")["input_ids"]
+    batch = tokenizer(inputs, padding=True, truncation=True, return_tensors="pt")
     if is_labelled:
         with tokenizer.as_target_tokenizer():
             label_input_ids = tokenizer(batch["output"], padding=True, truncation=True, return_tensors="pt")
-        return {"input_values": torch.tensor(source_input_ids), "labels": torch.tensor(label_input_ids["input_ids"])}
+        batch["labels"] = label_input_ids["input_ids"]
+        return batch
     else:
-        return {"input_values": torch.tensor(source_input_ids)}
+        return batch
 
 def run_trainer(train_dataset: Dataset, 
                 val_dataset: Dataset,
@@ -88,13 +89,18 @@ def run_trainer(train_dataset: Dataset,
 
 @click.command()
 def test_model():
+    disable_caching()
     test_dataset = load_from_disk(f"{SCRATCH_PATH}/byt5_all_val_dataset")
+
+    # filter the test dataset to only get the ones where the "input" column starts with "<eng>".
+    test_dataset = test_dataset.filter(lambda example: example["input"].startswith("<eng>"))
+
     # load model. Get the model from the output dir. Use the latest checkpoint.
     # use AutoModelForSeq2SeqLM and load from the output dir.
     output_dir = f"{SCRATCH_PATH}/byt5_checkpoints_all"
     most_recent_checkpoint = max(os.listdir(output_dir))
     model = AutoModelForSeq2SeqLM.from_pretrained(f"{output_dir}/{most_recent_checkpoint}")
-    test_dataset = test_dataset.map(preprocess_dataset, batched=True, keep_in_memo) # TODO: currently using the same dataset for validation. fix later.
+    test_dataset = test_dataset.map(preprocess_dataset, batched=True, load_from_cache_file=False) # TODO: currently using the same dataset for validation. fix later.
     batch_size = 16
 
     # run the model on the test dataset. Use a batch size of 16.
@@ -108,14 +114,12 @@ def test_model():
     for i in range(0, len(test_dataset), batch_size):
         batch = test_dataset[i:i+batch_size]
 
+        model.eval()
+        with torch.no_grad():
+            outputs = model(**batch)
+        
         # Generate the predictions for the batch
-        generated_ids = model.generate(
-            batch['input_values'],
-            max_length=128,
-            num_beams=4,
-            early_stopping=True
-        )
-        generated_texts = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        generated_texts = tokenizer.batch_decode(outputs.logits.argmax(dim=-1), skip_special_tokens=True)
         num_correct += sum([1 if generated_texts[i] == batch['output'][i] else 0 for i in range(len(generated_texts))])
         num_total += len(generated_texts)
     print(f"Overall accuracy: {num_correct/num_total}")
