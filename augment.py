@@ -97,7 +97,7 @@ def augment(inputs, outputs, tags, characters):
             new_inputs.append([])
             new_outputs.append([])
             new_tags.append([])
-    print("\n")
+        print("\n")
     return new_inputs, new_outputs, new_tags
 
 def get_chars(l):
