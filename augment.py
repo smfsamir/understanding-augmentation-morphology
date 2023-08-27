@@ -102,7 +102,7 @@ args = parser.parse_args()
 
 DATA_PATH = args.datapath
 L2 = args.language
-LOW_PATH = os.path.join(DATA_PATH, L2+"-train")
+LOW_PATH = os.path.join(DATA_PATH, L2+"-train-low")
 
 N = args.examples
 lowi, lowo, lowt = read_data(LOW_PATH)
