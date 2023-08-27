@@ -1,3 +1,6 @@
+import loguru
+import ipdb
+import epitran
 import align
 import argparse
 import codecs
@@ -5,6 +8,8 @@ import os, sys
 from random import random, choice
 import re
 
+logger = loguru.logger
+epi = epitran.Epitran('ara-Arab')
 
 def read_data(filename):
     with codecs.open(filename, 'r', 'utf-8') as inp:
@@ -64,8 +69,13 @@ def augment(inputs, outputs, tags, characters):
         i,o = item[0],item[1]
         good_range = find_good_range(i,o)
         #print(good_range)
+        i_phon = epi.transliterate(i)
+        o_phon = epi.transliterate(o)
         if good_range:
             new_i, new_o = list(i), list(o)
+            logger.info(f"Stem found for {i} (phonetic: {i_phon}) and {o} (phonetic: {o_phon})")
+            stem = i[good_range[0][0]:good_range[0][1]]
+            logger.info(f"Stem: {stem} (phonetic: {epi.transliterate(stem)})")
             for r in good_range:
                 s = r[0]
                 e = r[1]
@@ -83,6 +93,7 @@ def augment(inputs, outputs, tags, characters):
             new_outputs.append(new_o1)
             new_tags.append(tags[k])
         else:
+            logger.info(f"No stem found for {i} and {o}")
             new_inputs.append([])
             new_outputs.append([])
             new_tags.append([])
