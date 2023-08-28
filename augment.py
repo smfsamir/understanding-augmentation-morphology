@@ -93,7 +93,7 @@ def augment(inputs, outputs, tags, characters):
             new_outputs.append(new_o1)
             new_tags.append(tags[k])
         else:
-            logger.info(f"No stem found for {i} and {o}")
+            logger.info(f"No stem found for {i} (phonetic: {i_phon}) and {o} (phonetic: {o_phon})")
             new_inputs.append([])
             new_outputs.append([])
             new_tags.append([])
