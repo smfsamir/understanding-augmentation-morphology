@@ -105,37 +105,38 @@ def get_chars(l):
     return list(set(flat_list))
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("datapath", help="path to data", type=str)
-parser.add_argument("language", help="language", type=str)
-parser.add_argument("--examples", help="number of hallucinated examples to create (def: 10000)", default=10000, type=int)
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("datapath", help="path to data", type=str)
+    parser.add_argument("language", help="language", type=str)
+    parser.add_argument("--examples", help="number of hallucinated examples to create (def: 10000)", default=10000, type=int)
+    args = parser.parse_args()
 
-DATA_PATH = args.datapath
-L2 = args.language
-LOW_PATH = os.path.join(DATA_PATH, L2+"-train-low")
+    DATA_PATH = args.datapath
+    L2 = args.language
+    LOW_PATH = os.path.join(DATA_PATH, L2+"-train-low")
 
-N = args.examples
-lowi, lowo, lowt = read_data(LOW_PATH)
-vocab = get_chars(lowi+lowo)
+    N = args.examples
+    lowi, lowo, lowt = read_data(LOW_PATH)
+    vocab = get_chars(lowi+lowo)
 
-i,o,t = [], [], []
-while len(i) < N:
-    ii,oo,tt = augment(lowi, lowo, lowt, vocab)
-    ii = [c for c in ii if c]
-    oo = [c for c in oo if c]
-    tt = [c for c in tt if c]
-    i += ii
-    o += oo
-    t += tt
-    if len(ii) == 0:
-        break
+    i,o,t = [], [], []
+    while len(i) < N:
+        ii,oo,tt = augment(lowi, lowo, lowt, vocab)
+        ii = [c for c in ii if c]
+        oo = [c for c in oo if c]
+        tt = [c for c in tt if c]
+        i += ii
+        o += oo
+        t += tt
+        if len(ii) == 0:
+            break
 
-# Wait is this needed?
-i = [c for c in i if c]
-o = [c for c in o if c]
-t = [c for c in t if c]
+    # Wait is this needed?
+    i = [c for c in i if c]
+    o = [c for c in o if c]
+    t = [c for c in t if c]
 
-with codecs.open(os.path.join(DATA_PATH,L2+"-hall"), 'w', 'utf-8') as outp:
-    for k in range(min(N, len(i))):
-        outp.write(''.join(i[k]) + '\t' + ''.join(o[k]) + '\t' + ';'.join(t[k]) + '\n')
+    with codecs.open(os.path.join(DATA_PATH,L2+"-hall"), 'w', 'utf-8') as outp:
+        for k in range(min(N, len(i))):
+            outp.write(''.join(i[k]) + '\t' + ''.join(o[k]) + '\t' + ';'.join(t[k]) + '\n')
