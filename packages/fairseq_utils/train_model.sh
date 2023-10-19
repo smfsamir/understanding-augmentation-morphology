@@ -10,6 +10,8 @@ PREPROCESS="${LANG}_fairseq_bin"
 SAVEPREF="${LANG}_${ALGORITHM}_model_checkpoints"
 mkdir -p "${SAVEPREF}"
 
+# using 4,000 warmup and 6,000 total updates seems to be very important.
+# i tried doing half of these (2,000 warmup and 3,000 total) and the results were much worse.
 fairseq-train $PREPROCESS \
     --no-epoch-checkpoints \
     --source-lang src \
@@ -34,10 +36,10 @@ fairseq-train $PREPROCESS \
     --batch-size 16 \
     --clip-norm 0 \
     --lr-scheduler inverse_sqrt \
-    --warmup-updates 4000 \
     --warmup-init-lr 1e-7 --lr 0.001 --stop-min-lr 1e-9 \
     --keep-interval-updates 20 \
     --max-tokens 2000 \
     --max-update 6000 \
+    --warmup-updates 4000 \
     --update-freq 1 \
     --log-format json --log-interval 20  

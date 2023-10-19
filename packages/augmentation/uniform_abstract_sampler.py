@@ -4,7 +4,6 @@ import pandas as pd
 import pickle as pkl
 from .augment_selecter import AugmentationSelector 
 
-# TODO: check for 100,000 instead of 10,000. Or, make it a parameter.
 class UniformAbstractSampler(AugmentationSelector):
     """Sample abstract morphological templates.
     """

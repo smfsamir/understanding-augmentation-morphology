@@ -1,3 +1,4 @@
+import polars as pl
 import pickle as pkl
 import pdb
 
@@ -49,3 +50,6 @@ class HighLossSampler(AugmentationSelector):
             return self.get_augmentation_frame(np.array(indices)[subset_indices[-num_points:]])
         else:
             return self.get_augmentation_frame(np.array(indices)[subset_indices[:num_points]])
+    
+def highest_uncertainty_sample_augmented_data(augmentation_frame: pl.DataFrame, num_points: int):
+    return augmentation_frame.top_k(num_points, by='nll')

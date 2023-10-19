@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import loguru
 import ipdb
 import epitran
@@ -50,6 +51,18 @@ def find_good_range(a,b):
     ranges = [c for c in ranges if c[1]-c[0]>2]
     return ranges
 
+def retrieve_alignment_fails(inputs: List[str], outputs: List[str]) -> List[Tuple[str, str]]:
+    inputs_outputs = list(zip(inputs, outputs))
+    aligned = align.Aligner(inputs_outputs).alignedpairs
+    alignment_fails = []
+
+    for _, item in enumerate(aligned):
+        good_range = find_good_range(item[0], item[1])
+        if not good_range:
+            alignment_fails.append(True)
+        else:
+            alignment_fails.append(False)
+    return alignment_fails
 
 def augment(inputs, outputs, tags, characters):
     temp = [(''.join(inputs[i]), ''.join(outputs[i])) for i in range(len(outputs))]

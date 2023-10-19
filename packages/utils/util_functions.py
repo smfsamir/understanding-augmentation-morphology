@@ -1,3 +1,5 @@
+import polars as pl
+import os
 import datetime
 from itertools import product
 
@@ -23,7 +25,7 @@ def get_model_augment_path(language, augmentation_type, **kwargs):
         language (str): Language the model is being trained for.
         augmentation_type (str): Augmentation type for the model. 
     """
-    kwarg_strs= [f"{k}={v}" for k, v in kwargs.items() if k != 'rand_seed']
+    kwarg_strs= [f"{k}={v}" for k, v in kwargs.items() if ((k != 'rand_seed') and (k!= 'aug_pool_size'))]
     kwarg_strs.sort()
     kwarg_str = "_".join(kwarg_strs)
     assert 'rand_seed' in kwargs, f"rand_seed kwarg not in kwargs for {language} with augmentation type {augmentation_type}"
@@ -64,17 +66,17 @@ def load_gold_train_validation_test(language, train_medium: bool):
     return train_frame, validation_frame, test_frame
 
 def load_sigm_file(path):
-    return pd.read_csv(path, header=None, names=["src", "tgt" ,"tag"], sep='\t')
+    return pl.from_pandas(pd.read_csv(path, header=None, names=["src", "tgt" ,"tag"], sep='\t'))
 
 def tokenize_row_src(row):
-    tokens = list(row.src) + row.tag.split(";")
+    tokens = list(row[0]) + row[1].split(";")
     return " ".join(tokens)
 
 def tokenize_row_tgt(row):
-    tokens = list(row.tgt)
+    tokens = list(row[0])
     return " ".join(tokens)
 
-def construct_cg_test_set(language, data_quantity):
+def construct_cg_test_set(language: str, data_quantity: str) -> pd.DataFrame:
     dev_frame = load_sigm_file(f"{SIGM_DATA_PATH}/{language}-dev")
 
     low_train_frame = load_sigm_file(f"{SIGM_DATA_PATH}/{language}-train-low")
@@ -92,3 +94,11 @@ def construct_cg_test_set(language, data_quantity):
     cg_frame_len = len(cg_test_frame)
     print(f"Out of the {all_frame_len} entries, we took {cg_frame_len} of them")
     return cg_test_frame
+
+def hparam_comb_tested(hparam_comb, curr_language, augmentation_type):
+    augment_path = get_model_augment_path(curr_language, augmentation_type, **hparam_comb)
+    if os.path.exists(f"{augment_path}/final_results.txt"):
+        print(f"{augment_path} has already been generated; skipping")
+        return True
+    else:
+        return False
