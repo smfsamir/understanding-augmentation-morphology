@@ -50,7 +50,8 @@ def _binarize_data(train_frame, validation_frame, test_dataframe,
         os.makedirs(model_augment_path)
     language = "arabic"
     def _write_src_tgt_to_file(split_frame: pl.DataFrame, split_name: str):
-        split_frame = pl.from_pandas(split_frame)
+        if type(split_frame) == pd.DataFrame:
+            split_frame = pl.from_pandas(split_frame)
         with open(f"{model_augment_path}/{language}-{split_name}.src", "w") as fseq_src_f:
             split_frame.select(['src', 'tag']).map_rows(lambda row: fseq_src_f.write(f"{tokenize_row_src(row)}\n"))  # rows
         # write tgt
