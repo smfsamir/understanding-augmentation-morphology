@@ -36,7 +36,7 @@ def step_load_non_concat_examples(step_name: str, version: str, cg_test_set_arab
     )
     return arabic_test_frame
 
-def step_generate_augmented_data(step_name: str, version: str):
+def step_generate_augmented_data(step_name: str, version: str) -> pd.DataFrame:
     language = "arabic"
     subprocess.run(["python", "augment.py", SIGM_DATA_PATH, language], check=True)
     augmentation_frame = pd.read_csv(f"{SIGM_DATA_PATH}/{language}-hall", header=None, names=["src", "tgt" ,"tag"], sep='\t')
@@ -50,6 +50,7 @@ def _binarize_data(train_frame, validation_frame, test_dataframe,
         os.makedirs(model_augment_path)
     language = "arabic"
     def _write_src_tgt_to_file(split_frame: pl.DataFrame, split_name: str):
+        split_frame = pl.from_pandas(split_frame)
         with open(f"{model_augment_path}/{language}-{split_name}.src", "w") as fseq_src_f:
             split_frame.select(['src', 'tag']).map_rows(lambda row: fseq_src_f.write(f"{tokenize_row_src(row)}\n"))  # rows
         # write tgt
