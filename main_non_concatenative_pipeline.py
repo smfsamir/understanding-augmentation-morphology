@@ -188,6 +188,8 @@ def step_train_augmented_model(step_name: str, version: str,
         
         ## binarize
         train_frame, validation_frame, _ = load_gold_train_validation_test(language, train_medium=False)
+        train_frame = pl.from_pandas(train_frame) if type(train_frame) == pd.DataFrame else train_frame
+        augmentation_subset_frame = pl.from_pandas(augmentation_subset_frame) if type(augmentation_subset_frame) == pd.DataFrame else augmentation_subset_frame
         model_augment_path = get_model_augment_path(language, strategy, rand_seed=seed, num_aug=subset_size, aug_pool_size=aug_pool_size)
         train_frame = pl.concat([train_frame, augmentation_subset_frame.select(['src', 'tgt', 'tag'])])
         _binarize_data(train_frame, validation_frame, cg_test_frame, model_augment_path)
@@ -229,7 +231,6 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
         (pl.col('tgt') == pl.col('prediction_ss=128_seed=0_strategy=random')).alias('predictions_correct')
     ]).group_by('alignment_failed').agg(pl.col('predictions_correct').sum())
 
-    
 
 if __name__ == "__main__":
     steps = OrderedDict()
