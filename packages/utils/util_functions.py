@@ -66,7 +66,7 @@ def load_gold_train_validation_test(language, train_medium: bool):
     return train_frame, validation_frame, test_frame
 
 def load_sigm_file(path):
-    return pl.from_pandas(pd.read_csv(path, header=None, names=["src", "tgt" ,"tag"], sep='\t'))
+    return (pd.read_csv(path, header=None, names=["src", "tgt" ,"tag"], sep='\t'))
 
 def tokenize_row_src(row):
     tokens = list(row[0]) + row[1].split(";")
