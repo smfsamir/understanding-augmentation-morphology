@@ -205,7 +205,7 @@ def step_train_augmented_model(step_name: str, version: str,
         return predictions_example_nums
     
     subset_sizes = [128, 512]
-    seeds = [0]
+    seeds = [0, 1, 2]
     strategies = ['random']
     cg_test_with_results_frame = cg_test_frame
     cg_test_with_results_frame = cg_test_with_results_frame.with_columns(
