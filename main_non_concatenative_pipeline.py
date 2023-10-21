@@ -27,6 +27,10 @@ def step_load_arabic_test_dataset(step_name: str, version: str) -> pd.DataFrame:
     cg_test_set_arabic_frame = construct_cg_test_set("arabic", "low")
     return cg_test_set_arabic_frame
 
+def step_load_medium_arabic_test_dataset(step_name: str, version: str) -> pd.DataFrame:
+    cg_test_set_arabic_frame = construct_cg_test_set("arabic", "medium")
+    return cg_test_set_arabic_frame
+
 def step_load_non_concat_examples(step_name: str, version: str, cg_test_set_arabic_frame: pl.DataFrame):
     arabic_test_frame = pl.from_pandas(cg_test_set_arabic_frame)
     alignment_fails = retrieve_alignment_fails(arabic_test_frame['src'].apply(lambda x: x.strip()),
@@ -75,6 +79,18 @@ def step_binarize_initial_training_and_eval_data(step_name: str, version: str,
 
     eval_frame = pl.concat([cg_test_frame.select(['src', 'tgt', 'tag']),\
                                        augmentation_frame])
+    _binarize_data(train_frame, validation_frame, eval_frame, model_augment_path)
+    return f"{model_augment_path}/{language}_fairseq_bin"
+
+def step_binarize_medium_training_and_eval_data(step_name: str, version: str,
+                                cg_test_frame: pl.DataFrame, augmentation_frame: pd.DataFrame):
+    language = 'arabic'
+    train_frame, validation_frame, _ = load_gold_train_validation_test(language, train_medium=True)
+    augmentation_frame = pl.from_pandas(augmentation_frame)
+    assert len(augmentation_frame) == 10000
+    model_augment_path = get_model_augment_path(language, "initial_medium_setting", rand_seed=0, aug_pool_size=len(augmentation_frame))
+    eval_frame = pl.concat([cg_test_frame.select(['src', 'tgt', 'tag']),\
+                                        augmentation_frame])
     _binarize_data(train_frame, validation_frame, eval_frame, model_augment_path)
     return f"{model_augment_path}/{language}_fairseq_bin"
 
@@ -227,13 +243,24 @@ def step_train_augmented_model(step_name: str, version: str,
 def step_compute_accuracy_on_unaligned_datapoints(step_name: str, 
                                                   version: str, 
                                                   prediction_frame: pl.DataFrame):
-    prediction_frame.with_columns([
-        (pl.col('tgt') == pl.col('prediction_ss=128_seed=0_strategy=random')).alias('predictions_correct')
-    ]).group_by('alignment_failed').agg(pl.col('predictions_correct').sum())
-    ipdb.set_trace()
-
-
-
+    seeds = [0, 1, 2]
+    subset_sizes = [128, 512]
+    result_frames = []
+    for seed, subset_size in product(seeds, subset_sizes):
+        print(f"Computing accuracy for seed {seed} and subset size {subset_size}")
+        result_frames.append(
+            prediction_frame.with_columns([
+                (pl.col('tgt') == pl.col(f'prediction_ss={subset_size}_seed={seed}_strategy=random')).alias('predictions_correct'),
+                pl.lit(seed).alias('seed'),
+                pl.lit(subset_size).alias('subset_size'),
+            ]).group_by('alignment_failed').agg(
+                pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
+                pl.col('seed').first(),
+                pl.col('subset_size').first()
+            )
+        )
+    result_frame = pl.concat(result_frames)
+    print(result_frame)
 
 if __name__ == "__main__":
     steps = OrderedDict()
