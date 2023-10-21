@@ -230,6 +230,9 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
     prediction_frame.with_columns([
         (pl.col('tgt') == pl.col('prediction_ss=128_seed=0_strategy=random')).alias('predictions_correct')
     ]).group_by('alignment_failed').agg(pl.col('predictions_correct').sum())
+    ipdb.set_trace()
+
+
 
 
 if __name__ == "__main__":
