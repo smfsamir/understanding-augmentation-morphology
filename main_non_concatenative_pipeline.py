@@ -10,7 +10,7 @@ from flowmason import conduct, cacheable
 import subprocess
 from augment import retrieve_alignment_fails
 from dotenv import dotenv_values
-from typing import List, Tuple, Dict, Function
+from typing import List, Tuple, Dict, Callable
 from itertools import product
 from functools import partial
 
@@ -206,7 +206,7 @@ def _retrieve_augmentation_frame_with_nll(augmentation_frame: pd.DataFrame, avg_
     augmentation_frame = augmentation_frame.join(nll_frame, on="augmentation_index")
     return augmentation_frame
 
-def train_augmented_model(train_model_fn: Function[str, str, int, int], cg_test_frame: pl.DataFrame):
+def train_augmented_model(train_model_fn: Callable[[str, str, int, int], List[Tuple[str, str]]], cg_test_frame: pl.DataFrame):
     subset_sizes = [128, 512]
     seeds = [0, 1, 2]
     strategies = ['random']
