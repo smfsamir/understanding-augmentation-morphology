@@ -449,7 +449,7 @@ if __name__ == "__main__":
     # add step for evaluating initial models
     steps['evaluate_initial_predictions'] = (step_evaluate_initial_predictions, {
         "step_name": "step_evaluate_initial_predictions",
-        "version": "003",
+        "version": "004",
         "cg_test_frame_med": "load_non_concat_examples_medium",
         "cg_test_frame_low": "load_non_concat_examples"
     })
