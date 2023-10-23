@@ -209,7 +209,7 @@ def _retrieve_augmentation_frame_with_nll(augmentation_frame: pd.DataFrame, avg_
 def train_augmented_model(train_model_fn: Callable[[str, str, int, int], List[Tuple[str, str]]], cg_test_frame: pl.DataFrame):
     subset_sizes = [128, 512]
     seeds = [0, 1, 2]
-    strategies = ['random']
+    strategies = ['random', 'uncertainty']
     cg_test_with_results_frame = cg_test_frame
     cg_test_with_results_frame = cg_test_with_results_frame.with_columns(
         pl.lit(list(range(len(cg_test_with_results_frame)))).alias('datapoint_index')
@@ -469,14 +469,14 @@ if __name__ == "__main__":
     # add step for training with augmented data
     steps['train_augmented_model'] = (step_train_augmented_model, {
         "step_name": "step_train_augmented_model",
-        "version": "006",
+        "version": "007",
         "cg_test_frame": "load_non_concat_examples",
         "augmentation_frame": "generate_augmented_data",
         "avg_log_likelihoods": "extract_log_likelihoods_aug_pool"
     })
     steps['train_augmented_model_medium'] = (step_train_augmented_model_medium_setting, {
         "step_name": "step_train_augmented_model_medium",
-        "version": "001",
+        "version": "002",
         "cg_test_frame": "load_non_concat_examples_medium",
         "augmentation_frame": "generate_augmented_data",
         "avg_log_likelihoods": "extract_log_likelihoods_aug_pool_medium"
