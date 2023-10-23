@@ -255,8 +255,8 @@ def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_fram
         })
         logger.info(f"Obtained an accuracy of {num_correct/total} for initial with {len(cg_test_frame_low)} examples")
         # join with the test frame
-        # cg_test_frame_low = cg_test_frame_low.join(initial_prediction_frame, on="datapoint_index")
-        # cg_test_frame_med = cg_test_frame_med.join(initial_medium_prediction_frame, on="datapoint_index")
+        cg_test_frame_low = cg_test_frame_low.join(initial_prediction_frame, on="datapoint_index")
+        cg_test_frame_med = cg_test_frame_med.join(initial_medium_prediction_frame, on="datapoint_index")
 
     return cg_test_frame_low, cg_test_frame_med
 
@@ -449,7 +449,7 @@ if __name__ == "__main__":
     # add step for evaluating initial models
     steps['evaluate_initial_predictions'] = (step_evaluate_initial_predictions, {
         "step_name": "step_evaluate_initial_predictions",
-        "version": "004",
+        "version": "005",
         "cg_test_frame_med": "load_non_concat_examples_medium",
         "cg_test_frame_low": "load_non_concat_examples"
     })
