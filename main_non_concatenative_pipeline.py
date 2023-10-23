@@ -370,7 +370,6 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
 
     # compute accuracy for initial predictions, grouping by whether the alignment failed
     initial_prediction_frame_low, initial_prediction_frame_med = initial_prediction_frames
-    ipdb.set_trace()
     initial_prediction_frame_low_results = initial_prediction_frame_low.with_columns([
         (pl.col('tgt') == pl.col('prediction_seed=0_strategy=initial')).alias('predictions_correct'),
         pl.lit(0).alias('seed'),
@@ -386,7 +385,6 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
         pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
         pl.col('seed').first()
     )
-    ipdb.set_trace()
 
 if __name__ == "__main__":
     steps = OrderedDict()
