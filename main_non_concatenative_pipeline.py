@@ -227,7 +227,7 @@ def train_augmented_model(train_model_fn: Callable[[str, str, int, int], List[Tu
 # NOTE: the test frames will be different. 
 def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_frame_med: pl.DataFrame,
                                  cg_test_frame_low: pl.DataFrame):
-    seeds = [0, 1, 2]
+    seeds = [0]
     language = 'arabic'
     frames = []
     cg_test_frame_low = cg_test_frame_low.with_columns(
