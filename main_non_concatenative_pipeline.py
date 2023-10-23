@@ -245,7 +245,6 @@ def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_fram
             "datapoint_index": [prediction_example_num[1] for prediction_example_num in predictions_example_nums]
         })
         #print the accuracy
-        ipdb.set_trace()
         logger.info(f"Obtained an accuracy of {num_correct/total} for initial with {len(cg_test_frame_low)} examples")
 
         model_augment_path = get_model_augment_path("arabic", 'initial_medium', rand_seed=seed, aug_pool_size=10000)
@@ -371,6 +370,7 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
 
     # compute accuracy for initial predictions, grouping by whether the alignment failed
     initial_prediction_frame_low, initial_prediction_frame_med = initial_prediction_frames
+    ipdb.set_trace()
     initial_prediction_frame_low_results = initial_prediction_frame_low.with_columns([
         (pl.col('tgt') == pl.col('prediction_seed=0_strategy=initial')).alias('predictions_correct'),
         pl.lit(0).alias('seed'),
