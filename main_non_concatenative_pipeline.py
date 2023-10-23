@@ -224,6 +224,38 @@ def train_augmented_model(train_model_fn: Callable[[str, str, int, int], List[Tu
         cg_test_with_results_frame = cg_test_with_results_frame.join(prediction_frame, on="datapoint_index")
     return cg_test_with_results_frame
 
+# NOTE: the test frames will be different. 
+def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_frame_med: pl.DataFrame,
+                                 cg_test_frame_low: pl.DataFrame):
+    seeds = [0, 1, 2]
+    language = 'arabic'
+    frames = []
+    cg_test_frame_low = cg_test_frame_low.with_columns(
+        pl.lit(list(range(len(cg_test_frame_low)))).alias('datapoint_index')
+    )
+    cg_test_frame_med = cg_test_frame_med.with_columns(
+        pl.lit(list(range(len(cg_test_frame_med)))).alias('datapoint_index')
+    )
+    for seed in seeds:
+        model_augment_path = get_model_augment_path("arabic", 'initial', rand_seed=seed, aug_pool_size=10000)
+        # evaluate_generations_from_model(f"{model_augment_path}/{language}_results.txt", len(cg_test_frame))
+        num_correct, total, predictions_example_nums = evaluate_generations_from_model(f"{model_augment_path}/{language}_results.txt", len(cg_test_frame_low))
+        initial_prediction_frame = pl.DataFrame({
+            f"prediction_seed={seed}_strategy=initial": [prediction_example_num[0] for prediction_example_num in predictions_example_nums], 
+            "datapoint_index": [prediction_example_num[1] for prediction_example_num in predictions_example_nums]
+        })
+
+        model_augment_path = get_model_augment_path("arabic", 'initial_medium', rand_seed=seed, aug_pool_size=10000)
+        num_correct, total, predictions_example_nums = evaluate_generations_from_model(f"{model_augment_path}/{language}_results.txt", len(cg_test_frame_med))
+        initial_medium_prediction_frame = pl.DataFrame({
+            f"prediction_seed={seed}_strategy=initial_medium": [prediction_example_num[0] for prediction_example_num in predictions_example_nums], 
+            "datapoint_index": [prediction_example_num[1] for prediction_example_num in predictions_example_nums]
+        })
+        # join with the test frame
+        cg_test_frame_low = cg_test_frame_low.join(initial_prediction_frame, on="datapoint_index")
+        cg_test_frame_med = cg_test_frame_med.join(initial_medium_prediction_frame, on="datapoint_index")
+    return cg_test_frame_low, cg_test_frame_med
+
 def step_train_augmented_model_medium_setting(step_name: str, version: str, augmentation_frame: pd.DataFrame, 
                                               cg_test_frame: pl.DataFrame, avg_log_likelihoods: List[Tuple[int, float, str]]):
 
@@ -311,7 +343,8 @@ def step_combine_low_and_med_predictions(step_name: str, version: str, low_pred_
 
 def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
                                                   version: str,
-                                                  prediction_frame: pl.DataFrame):
+                                                  prediction_frame: pl.DataFrame, 
+                                                  initial_prediction_frames: Tuple[pl.DataFrame, pl.DataFrame]):
     seeds = [0, 1, 2]
     subset_sizes = [128, 512]
     result_frames = []
@@ -330,6 +363,8 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
         )
     result_frame = pl.concat(result_frames)
     print(result_frame)
+
+    ipdb.set_trace()
 
 
 
@@ -391,6 +426,13 @@ if __name__ == "__main__":
         "cg_test_frame": "load_non_concat_examples_medium",
         "augmentation_frame": "generate_augmented_data"
     })
+    # add step for evaluating initial models
+    steps['evaluate_initial_predictions'] = (step_evaluate_initial_predictions, {
+        "step_name": "step_evaluate_initial_predictions",
+        "version": "001",
+        "cg_test_frame_med": "load_non_concat_examples_medium",
+        "cg_test_frame_low": "load_non_concat_examples"
+    })
     # add step for extracting log likelihoods from initial model
     steps['extract_log_likelihoods_aug_pool'] = (step_extract_log_likelihoods_aug_pool, {
         "step_name": "step_extract_log_likelihoods_aug_pool",
@@ -425,9 +467,11 @@ if __name__ == "__main__":
         "low_pred_frame": "train_augmented_model",
         "med_pred_frame": "train_augmented_model_medium"
     })
+
     steps['compute_accuracy_on_unaligned_datapoints'] = (step_compute_accuracy_on_unaligned_datapoints, {
         "step_name": "step_compute_accuracy_unaligned_data", 
         "version": "001", 
-        "prediction_frame": "combine_low_and_med_predictions"
+        "prediction_frame": "combine_low_and_med_predictions",
+        "initial_prediction_frames": "evaluate_initial_predictions"
     })
     conduct(cache_path, steps, "nonconcatenative_experiments")
