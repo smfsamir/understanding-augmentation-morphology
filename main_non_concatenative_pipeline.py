@@ -245,6 +245,7 @@ def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_fram
             "datapoint_index": [prediction_example_num[1] for prediction_example_num in predictions_example_nums]
         })
         #print the accuracy
+        ipdb.set_trace()
         logger.info(f"Obtained an accuracy of {num_correct/total} for initial with {len(cg_test_frame_low)} examples")
 
         model_augment_path = get_model_augment_path("arabic", 'initial_medium', rand_seed=seed, aug_pool_size=10000)
@@ -447,7 +448,7 @@ if __name__ == "__main__":
     # add step for evaluating initial models
     steps['evaluate_initial_predictions'] = (step_evaluate_initial_predictions, {
         "step_name": "step_evaluate_initial_predictions",
-        "version": "002",
+        "version": "003",
         "cg_test_frame_med": "load_non_concat_examples_medium",
         "cg_test_frame_low": "load_non_concat_examples"
     })
