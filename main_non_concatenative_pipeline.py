@@ -89,7 +89,7 @@ def step_binarize_medium_training_and_eval_data(step_name: str, version: str,
     train_frame, validation_frame, _ = load_gold_train_validation_test(language, train_medium=True)
     augmentation_frame = pl.from_pandas(augmentation_frame)
     assert len(augmentation_frame) == 10000
-    model_augment_path = get_model_augment_path(language, "initial_medium_setting", rand_seed=0, aug_pool_size=len(augmentation_frame))
+    model_augment_path = get_model_augment_path(language, "initial_medium", rand_seed=0, aug_pool_size=len(augmentation_frame))
     eval_frame = pl.concat([cg_test_frame.select(['src', 'tgt', 'tag']),\
                                         augmentation_frame])
     _binarize_data(train_frame, validation_frame, eval_frame, model_augment_path)
@@ -322,6 +322,10 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
     result_frame = pl.concat(result_frames)
     print(result_frame)
 
+def step_combine_low_and_med_predictions(step_name: str, version: str, low_pred_frame: pl.DataFrame,
+                                         med_pred_frame: pl.DataFrame) -> pl.DataFrame:
+    ipdb.set_trace()
+
 if __name__ == "__main__":
     steps = OrderedDict()
     steps['load_arabic_test_dataset'] = (step_load_arabic_test_dataset, {
@@ -407,6 +411,12 @@ if __name__ == "__main__":
         "cg_test_frame": "load_non_concat_examples_medium",
         "augmentation_frame": "generate_augmented_data",
         "avg_log_likelihoods": "extract_log_likelihoods_aug_pool_medium"
+    })
+    steps['combine_low_and_med_predictions'] = (step_combine_low_and_med_predictions, {
+        "step_name": "step_combine_low_and_med_predictions",
+        "version": "001",
+        "low_pred_frame": "train_augmented_model",
+        "med_pred_frame": "train_augmented_model_medium"
     })
     steps['compute_accuracy_on_unaligned_datapoints'] = (step_compute_accuracy_on_unaligned_datapoints, {
         "step_name": "step_compute_accuracy_unaligned_data", 
