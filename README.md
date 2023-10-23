@@ -1,1 +1,1 @@
-A replication of Anastasopolous & Neubig (EMNLP 2019). Any mistakes are my own.
+Code for "Understanding Compositional Data Augmentation in Typologically Diverse Morphological Inflection" by Samir & Silfverberg (EMNLP 2023). 
