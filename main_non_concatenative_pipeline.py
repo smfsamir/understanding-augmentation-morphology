@@ -352,11 +352,12 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
     seeds = [0, 1, 2]
     subset_sizes = [128, 512]
     result_frames = []
-    for seed, subset_size in product(seeds, subset_sizes):
+    strategies = ['random', 'uncertainty']
+    for seed, subset_size, strategy in product(seeds, subset_sizes, strategies):
         print(f"Computing accuracy for seed {seed} and subset size {subset_size}")
         result_frames.append(
             prediction_frame.with_columns([
-                (pl.col('tgt') == pl.col(f'prediction_ss={subset_size}_seed={seed}_strategy=random')).alias('predictions_correct'),
+                (pl.col('tgt') == pl.col(f'prediction_ss={subset_size}_seed={seed}_strategy={strategy}')).alias('predictions_correct'),
                 pl.lit(seed).alias('seed'),
                 pl.lit(subset_size).alias('subset_size'),
             ]).group_by('alignment_failed', 'init_data_cond').agg(
