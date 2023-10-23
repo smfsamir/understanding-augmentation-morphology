@@ -358,15 +358,31 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
             ]).group_by('alignment_failed').agg(
                 pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
                 pl.col('seed').first(),
-                pl.col('subset_size').first()
+                pl.col('subset_size').first(),
+                pl.col('init_data_cond').first()
             )
         )
     result_frame = pl.concat(result_frames)
     print(result_frame)
 
+    # compute accuracy for initial predictions, grouping by whether the alignment failed
+    initial_prediction_frame_low, initial_prediction_frame_med = initial_prediction_frames
+    initial_prediction_frame_low = initial_prediction_frame_low.with_columns([
+        (pl.col('tgt') == pl.col('prediction_seed=0_strategy=initial')).alias('predictions_correct'),
+        pl.lit(0).alias('seed'),
+    ]).group_by('alignment_failed').agg(
+        pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
+        pl.col('seed').first()
+    )
+
+    initial_prediction_frame_med = initial_prediction_frame_med.with_columns([
+        (pl.col('tgt') == pl.col('prediction_seed=0_strategy=initial_medium')).alias('predictions_correct'),
+        pl.lit(0).alias('seed'),
+    ]).group_by('alignment_failed').agg(
+        pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
+        pl.col('seed').first()
+    )
     ipdb.set_trace()
-
-
 
 if __name__ == "__main__":
     steps = OrderedDict()
