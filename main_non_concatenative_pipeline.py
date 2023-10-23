@@ -360,10 +360,12 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
                 (pl.col('tgt') == pl.col(f'prediction_ss={subset_size}_seed={seed}_strategy={strategy}')).alias('predictions_correct'),
                 pl.lit(seed).alias('seed'),
                 pl.lit(subset_size).alias('subset_size'),
+                pl.lit(strategy).alias('strategy'),
             ]).group_by('alignment_failed', 'init_data_cond').agg(
                 pl.col('predictions_correct').sum()/pl.col('predictions_correct').count(),
                 pl.col('seed').first(),
                 pl.col('subset_size').first(),
+                pl.col('strategy').first()
             )
         )
     result_frame = pl.concat(result_frames)
