@@ -124,9 +124,9 @@ def evaluate_generations_from_model(generation_file_path, num_test_examples: int
             gold_line = predictions_f.readline()
             example_num = int((gold_line.split('\t')[0])[2:])
             gold = ''.join(gold_line.split('\t')[1].strip().split(' '))
-            example_nums.append(example_num)
             if example_num < num_test_examples:
                 golds.append(gold)
+                example_nums.append(example_num)
 
             hypothesis_line = predictions_f.readline()
             hypothesis = ''.join(hypothesis_line.split('\t')[2].strip().split(' '))
@@ -256,8 +256,9 @@ def step_evaluate_initial_predictions(step_name: str, version: str, cg_test_fram
         })
         logger.info(f"Obtained an accuracy of {num_correct/total} for initial with {len(cg_test_frame_low)} examples")
         # join with the test frame
-        cg_test_frame_low = cg_test_frame_low.join(initial_prediction_frame, on="datapoint_index")
-        cg_test_frame_med = cg_test_frame_med.join(initial_medium_prediction_frame, on="datapoint_index")
+        # cg_test_frame_low = cg_test_frame_low.join(initial_prediction_frame, on="datapoint_index")
+        # cg_test_frame_med = cg_test_frame_med.join(initial_medium_prediction_frame, on="datapoint_index")
+
     return cg_test_frame_low, cg_test_frame_med
 
 def step_train_augmented_model_medium_setting(step_name: str, version: str, augmentation_frame: pd.DataFrame, 
