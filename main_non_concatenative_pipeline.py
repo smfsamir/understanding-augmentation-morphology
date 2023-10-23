@@ -296,12 +296,21 @@ def step_train_augmented_model(step_name: str, version: str,
         logger.info(f"Obtained an accuracy of {num_correct/total} for {strategy} with {subset_size} examples")
         return predictions_example_nums
     return train_augmented_model(partial(cacheable_train_augmented_model,
-        cacheable_name="cacheable_train_augmented_model"), 
+        cacheable_name="cacheable_train_augmented_model"),
     cg_test_frame)
 
-# TODO: Fill in.
-def step_compute_accuracy_on_unaligned_datapoints(step_name: str, 
-                                                  version: str, 
+def step_combine_low_and_med_predictions(step_name: str, version: str, low_pred_frame: pl.DataFrame,
+                                         med_pred_frame: pl.DataFrame) -> pl.DataFrame:
+    low_pred_frame = low_pred_frame.with_columns(
+        pl.lit("low").alias("init_data_cond")
+    )
+    med_pred_frame = med_pred_frame.with_columns(
+        pl.lit("medium").alias("init_data_cond")
+    )
+    return pl.concat([low_pred_frame, med_pred_frame])
+
+def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
+                                                  version: str,
                                                   prediction_frame: pl.DataFrame):
     seeds = [0, 1, 2]
     subset_sizes = [128, 512]
@@ -322,9 +331,7 @@ def step_compute_accuracy_on_unaligned_datapoints(step_name: str,
     result_frame = pl.concat(result_frames)
     print(result_frame)
 
-def step_combine_low_and_med_predictions(step_name: str, version: str, low_pred_frame: pl.DataFrame,
-                                         med_pred_frame: pl.DataFrame) -> pl.DataFrame:
-    ipdb.set_trace()
+
 
 if __name__ == "__main__":
     steps = OrderedDict()
@@ -421,6 +428,6 @@ if __name__ == "__main__":
     steps['compute_accuracy_on_unaligned_datapoints'] = (step_compute_accuracy_on_unaligned_datapoints, {
         "step_name": "step_compute_accuracy_unaligned_data", 
         "version": "001", 
-        "prediction_frame": "train_augmented_model"
+        "prediction_frame": "combine_low_and_med_predictions"
     })
     conduct(cache_path, steps, "nonconcatenative_experiments")
